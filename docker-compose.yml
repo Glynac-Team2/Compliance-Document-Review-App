@@ -1,0 +1,14 @@
+services:
+    postgres:
+        image: "pgvector/pgvector:0.8.6-pg18"
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_USER: compliance_user
+            POSTGRES_PASSWORD: compliance_pass
+            POSTGRES_DB: compliance_db
+        volumes:
+            - postgres-data:/var/lib/postgresql
+            - ./backend/db/init:/docker-entrypoint-initdb.d
+volumes:
+    postgres-data:
