@@ -10,6 +10,7 @@ from app.database import get_db
 from app.deps import get_current_user, require_role
 from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
 from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut, FlagOut, PrecedentOut
+from app.ai.service import run_assist
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -26,8 +27,8 @@ def _log(db: Session, actor_id: str, document_id: str, action: AuditAction):
 
 
 def _build_thread(db: Session, doc: Document) -> List[ThreadEntry]:
-    """Walk revises_id back to the root, then present oldest \u2192 newest so a
-    revise \u2192 resubmit \u2192 approve cycle reads as one linked history."""
+    """Walk revises_id back to the root, then present oldest → newest so a
+    revise → resubmit → approve cycle reads as one linked history."""
     chain = [doc]
     cursor = doc
     while cursor.revises_id:
@@ -42,7 +43,7 @@ def _build_thread(db: Session, doc: Document) -> List[ThreadEntry]:
         if i == 0:
             label = "Original submission"
         elif d.id == doc.id:
-            label = f"Revision {i} \u2014 current"
+            label = f"Revision {i} — current"
         else:
             label = f"Revision {i}"
         entries.append(ThreadEntry(id=d.id, filename=d.filename, label=label))
@@ -134,15 +135,11 @@ def get_document(document_id: str, user: User = Depends(get_current_user), db: S
 
 @router.get("/{document_id}/assist", response_model=AssistOut)
 def get_assist(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Stub for the AI track's real endpoint. Returns a fixed, clearly-fake
-    analysis so the frontend can be built and demoed against a stable shape
-    before the real masker/retrieval pipeline exists. Swap the body of this
-    function for the real call — the response shape (AssistOut) is the
-    contract the frontend already builds against, so it shouldn't need to
-    change when the real thing lands.
-
-    If LLM_API_KEY is unset, this also doubles as the "AI unavailable"
-    degraded-state response the spec requires.
+    """Real AI-assist analysis: masked-text summary + rule-grounded flags,
+    cached per document. Returns available=False (never raises) if no
+    LLM_API_KEY is configured, or if extraction/masking/the LLM call fails
+    for any reason — the review page and decision buttons must keep
+    working regardless of what this endpoint returns.
     """
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
@@ -151,17 +148,4 @@ def get_assist(document_id: str, user: User = Depends(get_current_user), db: Ses
     if not settings.llm_api_key:
         return AssistOut(available=False, error="AI assist is not configured in this environment.")
 
-    # Placeholder analysis — replace with the real masked-text + retrieval call.
-    return AssistOut(
-        available=True,
-        summary=f"[stub] Analysis for {doc.filename} would appear here once the AI track's endpoint is wired in.",
-        flags=[
-            FlagOut(
-                severity="medium",
-                passage="[stub passage]",
-                rule="[stub rule]",
-                reason="Placeholder flag \u2014 replace with real rule-retrieval output.",
-            )
-        ],
-        precedents=[],
-    )
+    return run_assist(doc, db)
