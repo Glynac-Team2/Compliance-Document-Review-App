@@ -22,7 +22,7 @@ export default function Layout({ children }) {
           {user && (
             <div className="flex items-center gap-4">
               <span className="text-sm" style={{ color: "#5B6472" }}>
-                {user.name} \u00b7 <span className="capitalize">{user.role}</span>
+                {user.name} · — <span className="capitalize">{user.role}</span>
               </span>
               <button
                 onClick={() => {
