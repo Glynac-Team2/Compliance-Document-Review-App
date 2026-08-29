@@ -68,7 +68,7 @@ export default function Signup() {
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#5B6472" }}>
-              Role \u2014 fixed at sign-up, cannot be changed later
+              Role — fixed at sign-up, cannot be changed later
             </label>
             <div className="flex gap-2">
               {["advisor", "officer"].map((r) => (

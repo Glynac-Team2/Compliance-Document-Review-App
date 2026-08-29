@@ -22,7 +22,7 @@ export default function AssistPanel({ documentId }) {
     return <p className="text-sm" style={{ color: "#8A93A1" }}>Loading assist\u2026</p>;
   }
 
-  // Network/server failure, or the endpoint's "unavailable" response —
+  // Network/server failure, or the endpoint's "unavailable" response
   // either way the review page (and the decision buttons) stay usable.
   if (state.error || (state.data && state.data.available === false)) {
     return (
@@ -32,8 +32,8 @@ export default function AssistPanel({ documentId }) {
           AI assist unavailable
         </div>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: "#5B6472" }}>
-          {state.error || state.data?.error || "The analysis service didn\u2019t respond."} The
-          document itself is unaffected \u2014 you can still read it and record a decision.
+          {state.error || state.data?.error || "The analysis service didn't respond."} The
+          document itself is unaffected — you can still read it and record a decision.
         </p>
         <button
           onClick={load}

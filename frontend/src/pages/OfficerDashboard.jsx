@@ -61,7 +61,7 @@ export default function OfficerDashboard() {
 
   const decide = async (status) => {
     if (!comment.trim()) {
-      setDecisionError("Add a comment before recording a decision \u2014 the advisor will see it.");
+      setDecisionError("Add a comment before recording a decision — the advisor will see it.");
       return;
     }
     setSubmitting(true);
@@ -107,7 +107,7 @@ export default function OfficerDashboard() {
         </div>
 
         <div className="max-h-[560px] overflow-y-auto">
-          {loadingQueue && <div className="px-4 py-10 text-center text-sm" style={{ color: "#8A93A1" }}>Loading\u2026</div>}
+          {loadingQueue && <div className="px-4 py-10 text-center text-sm" style={{ color: "#8A93A1" }}>Loading…</div>}
           {!loadingQueue && filtered.length === 0 && (
             <div className="px-4 py-10 text-center text-sm" style={{ color: "#8A93A1" }}>Nothing in this queue.</div>
           )}
@@ -156,13 +156,13 @@ export default function OfficerDashboard() {
             </h2>
             <div className="mb-5 flex items-center gap-3 text-sm" style={{ color: "#5B6472" }}>
               <span>{detail.advisor.name}</span>
-              <span>\u00b7</span>
+              <span>.</span>
               <span className="flex items-center gap-1"><Clock size={13} />{new Date(detail.uploaded_at).toLocaleString()}</span>
             </div>
 
             <div className="mb-6 rounded-lg p-5" style={{ background: "#F5F6F8", minHeight: "120px" }}>
               <p className="text-sm leading-relaxed" style={{ color: "#5B6472" }}>
-                {detail.content_type} \u2014 file stored server-side at upload. A real preview/extractor
+                {detail.content_type} — file stored server-side at upload. A real preview/extractor
                 (Data Engineering's ingestion pipeline) would render the actual text here.
               </p>
             </div>
@@ -171,7 +171,7 @@ export default function OfficerDashboard() {
               <div className="mb-5 space-y-2">
                 {detail.reviews.map((r) => (
                   <div key={r.id} className="rounded-md px-3 py-2 text-xs" style={{ background: "#F5F6F8", color: "#5B6472" }}>
-                    <strong style={{ color: "#16202E" }}>{r.officer.name}</strong> \u2014 {r.status} \u2014 "{r.comment}"
+                    <strong style={{ color: "#16202E" }}>{r.officer.name}</strong> — {r.status} — "{r.comment}"
                   </div>
                 ))}
               </div>
@@ -186,7 +186,7 @@ export default function OfficerDashboard() {
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Explain the decision \u2014 the advisor sees this."
+                    placeholder="Explain the decision — the advisor sees this."
                     rows={3}
                     className="w-full rounded-md border p-3 text-sm outline-none"
                     style={{ borderColor: "#D7DCE3" }}

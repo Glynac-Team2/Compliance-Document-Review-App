@@ -56,7 +56,7 @@ function UploadCard({ onUploaded, revisesId, onDone }) {
       >
         <Upload size={20} style={{ color: "#B8862F" }} />
         <p className="mt-2 text-sm font-medium">{file ? file.name : "Drop a file, or browse"}</p>
-        <p className="mt-1 text-xs" style={{ color: "#8A93A1" }}>PDF \u00b7 DOCX \u00b7 XLSX \u00b7 10MB max</p>
+        <p className="mt-1 text-xs" style={{ color: "#8A93A1" }}>PDF · DOCX · XLSX · 10MB max</p>
         <input
           ref={inputRef}
           type="file"
@@ -72,7 +72,7 @@ function UploadCard({ onUploaded, revisesId, onDone }) {
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-medium text-white disabled:opacity-50"
         style={{ background: "#1F3157" }}
       >
-        <Send size={14} /> {busy ? "Submitting\u2026" : "Submit for review"}
+        <Send size={14} /> {busy ? "Submitting…" : "Submit for review"}
       </button>
     </div>
   );
@@ -140,7 +140,7 @@ function RevisionDetail({ doc, onClose, onResubmitted }) {
 
           {resubmitted && (
             <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm" style={{ background: "#E7F0EA", color: "#3E7A5C" }}>
-              <CheckCircle2 size={16} /> Revision submitted \u2014 back in the officer queue, linked to this thread.
+              <CheckCircle2 size={16} /> Revision submitted — back in the officer queue, linked to this thread.
             </div>
           )}
         </div>
@@ -180,10 +180,10 @@ export default function AdvisorDashboard() {
           <h3 className="text-sm font-semibold">Your submissions</h3>
         </div>
         <div>
-          {loading && <div className="px-6 py-8 text-center text-sm" style={{ color: "#8A93A1" }}>Loading\u2026</div>}
+          {loading && <div className="px-6 py-8 text-center text-sm" style={{ color: "#8A93A1" }}>Loading…</div>}
           {!loading && docs.length === 0 && (
             <div className="px-6 py-8 text-center text-sm" style={{ color: "#8A93A1" }}>
-              Nothing submitted yet \u2014 upload a file to get started.
+              Nothing submitted yet — upload a file to get started.
             </div>
           )}
           {docs.map((d) => (
@@ -203,11 +203,11 @@ export default function AdvisorDashboard() {
               <div className="mt-1.5 flex items-center gap-1.5 text-xs" style={{ color: "#8A93A1" }}>
                 <GitBranch size={12} />
                 {d.revises_id ? "Revision" : "Original submission"}
-                <span>\u00b7 {new Date(d.uploaded_at).toLocaleString()}</span>
+                <span>· {new Date(d.uploaded_at).toLocaleString()}</span>
               </div>
               {d.status === "needs_revision" && (
                 <div className="mt-2 rounded-md px-3 py-2 text-xs" style={{ background: "#E7EBF3", color: "#1F3157" }}>
-                  Officer requested changes \u2014 tap to read the comment and resubmit.
+                  Officer requested changes — tap to read the comment and resubmit.
                 </div>
               )}
             </button>
