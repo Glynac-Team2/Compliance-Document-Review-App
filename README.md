@@ -13,6 +13,7 @@ See each folder's README for setup. Quick start:
 
 ```bash
 # terminal 1
+docker compose up -d
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -51,10 +52,10 @@ or self-hosting a model, production-grade PII detection.
 
 ## Team tracks
 
-| Track | Status here |
-|---|---|
-| Backend | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
-| Frontend | Done for the core loop — see `frontend/README.md` |
-| AI | Not started — plug into `get_assist()` in `backend/app/routers/documents.py` |
-| Data engineering | Not started — ingestion, chunking, embeddings, retrieval all TBD |
-| DevOps / platform | Not started — no docker-compose yet, SQLite for now, no CI |
+| Track             | Status here                                                                  |
+| ----------------- | ---------------------------------------------------------------------------- |
+| Backend           | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
+| Frontend          | Done for the core loop — see `frontend/README.md`                            |
+| AI                | Not started — plug into `get_assist()` in `backend/app/routers/documents.py` |
+| Data engineering  | Not started — ingestion, chunking, embeddings, retrieval all TBD             |
+| DevOps / platform | Postgres/pgvector via docker-compose, CI running tests on every push         |

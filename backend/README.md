@@ -1,12 +1,15 @@
 # Backend — Compliance Document Review API
 
-FastAPI + SQLAlchemy. SQLite by default for zero-setup local dev; swap
-`DATABASE_URL` in `.env` for Postgres when the team's ready (schema is
-plain SQLAlchemy, no SQLite-specific tricks, so the swap is just the URL).
+FastAPI + SQLAlchemy. Postgres + pgvector via `docker-compose.yml` is the
+default setup — see below. SQLite remains available for solo work by
+pointing `DATABASE_URL` at `sqlite:///./compliance.db` instead, if ever
+needed (schema is plain SQLAlchemy, no SQLite-specific tricks, so the
+swap is just the URL).
 
 ## Setup
 
 ```bash
+docker compose up -d
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate      # .venv\Scripts\activate on Windows
