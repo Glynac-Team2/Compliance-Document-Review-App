@@ -25,7 +25,7 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # Flash-class model — the free tier's workhorse. Pro-class models are
 # paid-only as of 2026, so don't default to one here.
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 REQUEST_TIMEOUT_SECONDS = 30.0
 
@@ -95,7 +95,6 @@ def generate_assist(
         "generationConfig": {
             "response_mime_type": "application/json",
             "response_schema": _RESPONSE_SCHEMA,
-            "temperature": 0.2,
         },
     }
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
