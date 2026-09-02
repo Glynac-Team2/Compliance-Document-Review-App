@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from app.database import Base, engine
+from app.database import Base, engine, get_db
 from app.routers import auth, documents, reviews
 
 # For a real migration story swap this for Alembic; fine for local dev.
@@ -23,5 +25,9 @@ app.include_router(reviews.router)
 
 
 @app.get("/health")
-def health():
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {e}")
     return {"status": "ok"}
