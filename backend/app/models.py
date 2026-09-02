@@ -7,7 +7,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database import Base
-
+from pgvector.sqlalchemy import Vector #adding pgvector support for vector embeddings
 
 def gen_id() -> str:
     return uuid.uuid4().hex[:12]
@@ -137,3 +137,23 @@ class PIIMapping(Base):
     @classmethod
     def store(cls, document_id: str, mapping_dict: dict) -> "PIIMapping":
         return cls(document_id=document_id, mapping_json=json.dumps(mapping_dict))
+
+class PrecedentIndex(Base):
+    # Stores vector embeddings of past reviews to power similarity search.
+    __tablename__ = "precedent_index"
+    
+    id = Column(String, primary_key=True)
+    doc_type = Column(String, nullable=False)
+    masked_text = Column(Text, nullable=False)
+    decision = Column(String, nullable=False)
+    officer_comment = Column(Text, nullable=False)
+    embedding = Column(Vector(768))
+
+class ComplianceCorpus(Base):
+    # Stores vector embeddings of firm rules and required disclosures.
+    __tablename__ = "compliance_corpus"
+    
+    id = Column(String, primary_key=True)
+    category = Column(String, nullable=False)
+    text = Column(Text, nullable=False)
+    embedding = Column(Vector(768))
