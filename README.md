@@ -56,6 +56,6 @@ or self-hosting a model, production-grade PII detection.
 | ----------------- | ---------------------------------------------------------------------------- |
 | Backend           | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
 | Frontend          | Done for the core loop — see `frontend/README.md`                            |
-| AI                |pgvector models, PrecedentIndex/ComplianceCorpus tables,seeding pipeline merged |
-| Data engineering  | Not started — ingestion, chunking, embeddings, retrieval all TBD             |
+| AI                |Not Started |
+| Data engineering  |pgvector models, PrecedentIndex/ComplianceCorpus tables,seeding pipeline merged |
 | DevOps / platform | Postgres/pgvector via docker-compose, CI running tests on every push         |
