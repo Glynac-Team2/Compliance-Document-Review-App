@@ -2,6 +2,31 @@
 PII masker — server-side text masking applied before any document text
 leaves the app to a third-party LLM/embedding vendor.
 
+This implements pii_masking_specification.md (repo root, authored by
+Fahrrr) — same token categories (EMAIL/PHONE/ACCOUNT/AMOUNT/ADDRESS/CLIENT),
+same trigger-word logic for context-sensitive masking (dollar amounts and
+names are only masked near a triggering word, not on every match). Two
+patterns in the written spec use variable-length regex lookbehind
+(alternatives of different lengths inside `(?<=...)`), which Python's
+`re` module does not support — `re.compile()` raises
+`re.error: look-behind requires fixed-width pattern` on both the 3.4
+(dollar amount) and 3.6 (client name) patterns as written. This file
+gets the same masking BEHAVIOR (trigger word stays unmasked, only the
+value after/around it gets replaced) using match-then-split instead of
+lookbehind, which is valid Python and was verified to compile and run.
+Worth a heads-up to Fahrrr so the spec doc itself gets corrected too.
+
+Also closes two gaps found while testing against the spec:
+- 3.3 Account pattern only matched the abbreviations ACCT/ACC/ACT/NO./#
+  immediately before the digits — spelled-out "account number 123..."
+  (no abbreviation) fell through unmasked. Added "account" and "acct"
+  as case-insensitive triggers alongside the original abbreviations.
+- 3.2 Phone pattern has fully optional separators, so a bare digit run
+  can be misread as a phone number before the account pattern gets a
+  chance at it if ordering isn't careful. Section 5.4's own stated
+  order (Account before Phone) already protects against this in
+  practice, and that order is preserved here.
+
 Design notes (per the project brief):
 - This is a code-level transform, not a prompt instruction. The vendor
   never sees an unmasked payload.
@@ -11,10 +36,6 @@ Design notes (per the project brief):
 - The mapping (placeholder -> original value) is returned to the caller
   and must be stored server-side only (see PIIMapping model) — never
   sent to the vendor, never embedded.
-- This is intentionally regex/heuristic-based, not a production-grade
-  PII detector (out of scope per spec). Known gaps are documented at
-  the bottom of this file — knowing where it fails matters more than
-  chasing every edge case.
 
 Usage:
     masker = PIIMasker()
@@ -33,74 +54,75 @@ from typing import Dict, List, Tuple
 
 
 # ---------------------------------------------------------------------------
-# Regex patterns
+# Regex patterns — mirrors pii_masking_specification.md section 3, with the
+# lookbehind patterns (3.4, 3.6) rewritten as match-and-split (see module
+# docstring) since Python's `re` can't compile variable-width lookbehind.
 # ---------------------------------------------------------------------------
-# Ordering matters: more specific / higher-risk patterns run first so a
-# generic pattern doesn't gobble part of a more specific match first
-# (e.g. SSN before generic digit-heavy "account number").
 
-EMAIL_RE = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
-)
+# 3.1 Email — identical to spec.
+EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 
-# US phone numbers: (555) 123-4567, 555-123-4567, 555.123.4567, +1 555 123 4567
-# Separators are REQUIRED (not optional) so a bare 10-digit run (e.g. an
-# account number with no formatting) isn't misread as a phone number —
-# that's ACCOUNT_NUMBER_RE's job instead.
+# 3.2 Phone — identical to spec (separators fully optional, as written).
 PHONE_RE = re.compile(
-    r"(?<!\d)(?:\+?1[-.\s])?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}(?!\d)"
+    r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"
 )
 
-# SSN: 123-45-6789 (strict format, checked before generic account numbers)
-SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+# 3.3 Account & SSN — spec pattern, PLUS "account"/"acct" spelled out
+# (case-insensitive), with an optional "number" between trigger and
+# digits, since the abbreviation-only version misses plain "account
+# number 123456789" in real prose (the spec's own worked example prose
+# style, notably).
+ACCOUNT_RE = re.compile(
+    r"\b(?:\d{3}-\d{2}-\d{4}"
+    r"|(?:ACCT|ACC|ACT|NO\.?|#|account|acct)\s*(?:number\s*)?[:#-]?\s*\d{6,12})\b",
+    re.IGNORECASE,
+)
 
-# Generic account/routing-style numbers: 8-17 digits, optionally grouped
-# with spaces/dashes. Deliberately broad — false positives here are safer
-# than false negatives for a compliance masker. Anchored to always END on
-# a digit (not a separator) so a trailing space/dash after the number
-# isn't swallowed into the match.
-ACCOUNT_NUMBER_RE = re.compile(r"\b\d(?:[ -]?\d){7,16}\b")
-
-# Street addresses: "123 Main St", "4500 Elm Avenue, Suite 200"
+# 3.5 Address — spec pattern, with a few common street suffixes added
+# (Terrace, Court, Place, Circle, Highway) since the spec's own worked
+# example ("742 Evergreen Terrace") doesn't match its own suffix list —
+# "Terrace" isn't in it as written.
 ADDRESS_RE = re.compile(
-    r"\b\d{1,6}\s+[A-Z][A-Za-z0-9.'-]*(?:\s+[A-Z][A-Za-z0-9.'-]*){0,4}"
-    r"\s+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Lane|Ln|Drive|Dr|"
-    r"Court|Ct|Way|Place|Pl|Circle|Cir|Terrace|Ter|Highway|Hwy)\b\.?"
-    r"(?:,?\s+(?:Suite|Ste|Apt|Unit|#)\s*\w+)?"
+    r"\b\d{1,5}\s+[A-Za-z0-9.\s]{2,25}\s+"
+    r"(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|"
+    r"Terrace|Ter|Court|Ct|Place|Pl|Circle|Cir|Highway|Hwy|"
+    r"Suite|Ste|Apt|Apartment|Unit)\b"
+    r"(?:,?\s*[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)?"
 )
 
-# Dollar amounts: $1,000  $1,000.50  $1000
-DOLLAR_RE = re.compile(r"\$\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?")
+# 3.4 Dollar amount, rewritten from lookbehind to match-and-split.
+# Original spec intent: only mask a dollar figure when it's "tied to a
+# named person" — signaled by a trigger word/phrase immediately before it
+# (balance, portfolio, worth, invested, assets, deposited, withdrew, has,
+# holds, owns, value of) OR a trailing phrase right after it ("in his/her/
+# their account", "from his/her/their portfolio"). A bare "$10,000 minimum
+# investment" with neither trigger is left unmasked, same as the spec
+# intends (see spec's Known Limitation #2).
+_AMOUNT_TRIGGER_BEFORE = (
+    r"\b(?:balance|portfolio|worth|invested|assets|deposited|withdrew|"
+    r"has|holds|owns|value of)"
+)
+_DOLLAR = r"\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?"
+_AMOUNT_TRIGGER_AFTER = r"(?:in (?:his|her|their) account|from (?:his|her|their) portfolio)"
 
-# Person names: heuristic — two or three capitalized tokens in a row,
-# not at the start of a sentence-initial common word, and not matching
-# an address street-suffix pattern already consumed above.
-# This intentionally over-fires on things like "New York" or "Dear Sir" —
-# see "Known limitations" below.
-NAME_RE = re.compile(
-    r"\b(?:(?:Mr\.|Mrs\.|Ms\.|Dr\.|Mx\.)\s)?"
-    r"[A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2}\b"
+AMOUNT_LEADING_RE = re.compile(
+    rf"({_AMOUNT_TRIGGER_BEFORE}\s{{1,5}})({_DOLLAR})", re.IGNORECASE
+)
+AMOUNT_TRAILING_RE = re.compile(
+    rf"({_DOLLAR})(\s{{1,5}}{_AMOUNT_TRIGGER_AFTER})", re.IGNORECASE
 )
 
-# Common non-name capitalized phrases we don't want to mistake for a person.
-# Not exhaustive — extend as false positives are found in real usage.
-NAME_STOPWORDS = {
-    "New York", "Los Angeles", "San Francisco", "United States",
-    "New Jersey", "Wall Street", "Main Street", "Social Security",
-    "Compliance Officer", "Financial Advisor", "Annual Report",
-    "Terms And Conditions", "Privacy Policy",
-}
+# 3.6 Client name, rewritten from lookbehind to match-and-split.
+# Original spec intent: only mask a capitalized name when it directly
+# follows a triggering word (Client, Advisor, Investor, Mr./Ms./Mrs./Dr.,
+# Dear) — a much narrower, lower-false-positive rule than masking every
+# capitalized phrase. Per the spec's own Known Limitation #1, a name with
+# no such prefix (e.g. mid-sentence, no title) will NOT be masked — that's
+# accepted spec behavior, not a bug introduced here.
+_NAME_TRIGGER = r"\b(?:Client|Advisor|Investor|Mr\.|Ms\.|Mrs\.|Dr\.|Dear)"
+_NAME = r"[A-Z][a-z]+(?:\s[A-Z][a-z]+)+"
 
-# Common sentence-opening / letter-salutation words that precede a real
-# name (e.g. "Dear Jane Doe,"). Without this, the salutation word gets
-# swept into the masked span along with the name. Not a privacy issue
-# either way (the real name is still masked), but it produces cleaner,
-# more legible masked text for the officer's eventual unmasked view and
-# a tighter prompt for the LLM.
-NAME_LEADING_WORDS = {
-    "Dear", "Hi", "Hello", "Thanks", "Thank", "Please", "Regards",
-    "Sincerely", "Best", "Kind", "Warm", "Cheers", "Attention",
-}
+CLIENT_NAME_RE = re.compile(rf"({_NAME_TRIGGER}\s+)({_NAME})")
 
 
 @dataclass
@@ -133,61 +155,70 @@ class PIIMapping:
 
 
 class PIIMasker:
-    """Regex/heuristic PII masker. Not a production-grade detector —
-    see 'Known limitations' at the bottom of this file."""
-
-    # Order: most specific/high-confidence first.
-    _PATTERNS: List[Tuple[str, re.Pattern]] = [
-        ("EMAIL", EMAIL_RE),
-        ("SSN", SSN_RE),
-        ("PHONE", PHONE_RE),
-        ("ADDRESS", ADDRESS_RE),
-        ("AMOUNT", DOLLAR_RE),
-        ("ACCOUNT", ACCOUNT_NUMBER_RE),
-        ("CLIENT", NAME_RE),  # names last — after addresses/amounts are carved out
-    ]
+    """Regex/heuristic PII masker implementing pii_masking_specification.md.
+    Not a production-grade detector — see 'Known limitations' at the
+    bottom of this file (mirrors spec section 5)."""
 
     def mask(self, text: str, mapping: PIIMapping | None = None) -> Tuple[str, PIIMapping]:
         """Mask PII in `text`. If `mapping` is passed, placeholders are
         reused for values already seen (useful when masking multiple
         chunks/sections of the same document so [CLIENT_1] stays [CLIENT_1]
-        everywhere)."""
+        everywhere).
+
+        Order follows spec section 5.4: SSN/Account -> Address -> Phone ->
+        Email -> Dollar Amount -> Name.
+        """
         if mapping is None:
             mapping = PIIMapping()
 
         result = text
-        for category, pattern in self._PATTERNS:
-            result = self._mask_category(result, category, pattern, mapping)
+        result = self._mask_simple(result, "ACCOUNT", ACCOUNT_RE, mapping)
+        result = self._mask_simple(result, "ADDRESS", ADDRESS_RE, mapping)
+        result = self._mask_simple(result, "PHONE", PHONE_RE, mapping)
+        result = self._mask_simple(result, "EMAIL", EMAIL_RE, mapping)
+        result = self._mask_amount(result, mapping)
+        result = self._mask_client_name(result, mapping)
         return result, mapping
 
-    def _mask_category(
-        self, text: str, category: str, pattern: re.Pattern, mapping: PIIMapping
-    ) -> str:
+    def _mask_simple(self, text: str, category: str, pattern: re.Pattern, mapping: PIIMapping) -> str:
         def _replace(m: re.Match) -> str:
             value = m.group(0)
-            if category == "CLIENT":
-                if value.strip() in NAME_STOPWORDS:
-                    return value
-                # Split off a leading salutation word ("Dear Jane Doe" ->
-                # keep "Dear ", mask "Jane Doe") so it isn't swept into
-                # the placeholder along with the real name.
-                first_word, sep, rest = value.partition(" ")
-                if first_word in NAME_LEADING_WORDS and rest:
-                    return first_word + sep + mapping.get_or_create(category, rest)
-            if category == "ACCOUNT" and self._looks_like_date_or_id(value):
+            if category == "ACCOUNT" and self._looks_like_short_number(value):
                 return value
             return mapping.get_or_create(category, value)
 
         return pattern.sub(_replace, text)
 
+    def _mask_amount(self, text: str, mapping: PIIMapping) -> str:
+        # Trigger-before form: "balance $50,000.00" -> "balance [AMOUNT_1]"
+        def _replace_leading(m: re.Match) -> str:
+            trigger, amount = m.group(1), m.group(2)
+            return trigger + mapping.get_or_create("AMOUNT", amount)
+
+        text = AMOUNT_LEADING_RE.sub(_replace_leading, text)
+
+        # Trigger-after form: "$50,000 in his account" -> "[AMOUNT_1] in his account"
+        def _replace_trailing(m: re.Match) -> str:
+            amount, trigger = m.group(1), m.group(2)
+            return mapping.get_or_create("AMOUNT", amount) + trigger
+
+        text = AMOUNT_TRAILING_RE.sub(_replace_trailing, text)
+        return text
+
+    def _mask_client_name(self, text: str, mapping: PIIMapping) -> str:
+        def _replace(m: re.Match) -> str:
+            trigger, name = m.group(1), m.group(2)
+            return trigger + mapping.get_or_create("CLIENT", name)
+
+        return CLIENT_NAME_RE.sub(_replace, text)
+
     @staticmethod
-    def _looks_like_date_or_id(value: str) -> bool:
-        """Cheap guard against flagging things like page numbers or short
-        digit runs already matched by a more specific pattern. The account
-        pattern requires 8+ digits so this mostly matters for edge cases
-        with unusual spacing."""
-        digits_only = re.sub(r"[ -]", "", value)
-        return len(digits_only) < 8
+    def _looks_like_short_number(value: str) -> bool:
+        """Guard against the SSN alternative firing on something that
+        isn't actually 3-2-4 digit shaped (shouldn't happen given the
+        pattern, but cheap to double check)."""
+        digits_only = re.sub(r"\D", "", value)
+        return len(digits_only) < 6
 
     def unmask(self, text: str, mapping: PIIMapping) -> str:
         """Replace placeholders in model output with real values, for
@@ -200,23 +231,26 @@ class PIIMasker:
 
 
 # ---------------------------------------------------------------------------
-# Known limitations (documented per spec — "honest notes on what it misses")
+# Known limitations (mirrors pii_masking_specification.md section 5,
+# plus gaps found while implementing it)
 # ---------------------------------------------------------------------------
-# - NAME_RE is a capitalization heuristic. It will miss single-token names,
-#   lowercase-written names, and non-Western name formats. It will also
-#   over-fire on capitalized multi-word phrases not in NAME_STOPWORDS
-#   (e.g. product names, department names) — extend the stopword set as
-#   real false positives are found in the seed corpus.
-# - ACCOUNT_NUMBER_RE (8-17 digits) will match some non-account numbers
-#   (e.g. long reference/ticket IDs). Given the compliance context, we
-#   accept over-masking here as the safer failure mode.
-# - ADDRESS_RE covers common US street-suffix formats only — no PO boxes,
-#   no international address formats, no apartment-only references.
-# - Dollar amounts are masked whenever a "$N" pattern appears, per spec
-#   ("dollar amounts tied to a named person") — this implementation does
-#   not attempt to distinguish person-tied amounts from firm-level or
-#   aggregate figures (e.g. "$2M AUM"). That's a reasonable v2 refinement:
-#   only mask amounts within N tokens of a masked CLIENT placeholder.
-# - This masker operates on plain extracted text. It assumes Data
-#   Engineering's extraction step has already turned PDF/DOCX/XLSX into
-#   text before this runs.
+# - Client names are only masked when directly preceded by a trigger word
+#   (Client, Advisor, Investor, Mr./Ms./Mrs./Dr., Dear). A name with no
+#   such prefix, or written in lowercase, will NOT be masked. This is the
+#   spec's own documented tradeoff (fewer false positives on ordinary
+#   capitalized phrases), not an oversight.
+# - Dollar amounts are only masked near a trigger word/phrase. A bare
+#   figure with no context ("$10,000 minimum investment") is left
+#   unmasked, per spec Known Limitation #2.
+# - Informal/fragmented addresses without a standard street suffix
+#   ("his flat in Mumbai") are not caught, per spec Known Limitation #3.
+# - PHONE_RE has fully optional separators (as written in the spec) —
+#   a bare digit run with no ACCT/account keyword nearby could be
+#   misread as a phone number rather than left unmasked or caught as an
+#   account number. Given account patterns run first in the fixed
+#   processing order, this mainly affects digit runs with no account
+#   context at all, which end up masked (as PHONE) rather than not
+#   masked at all — over-masking, the safer failure mode.
+# - This masker operates on plain extracted text. It assumes text
+#   extraction (PDF/DOCX/XLSX -> plain text) has already happened before
+#   this runs.
