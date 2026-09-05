@@ -21,6 +21,9 @@ def record_decision(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    if doc.status != DocStatus.pending:
+        raise HTTPException(status_code=409, detail="Document was already decided")
+
     if payload.status not in (DocStatus.approved, DocStatus.rejected, DocStatus.needs_revision):
         raise HTTPException(status_code=400, detail="Decision must be approved, rejected, or needs_revision")
 
