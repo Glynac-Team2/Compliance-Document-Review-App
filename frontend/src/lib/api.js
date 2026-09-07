@@ -30,12 +30,16 @@ export const api = {
       body: JSON.stringify(payload),
     }).then(handle),
 
-  login: (payload) =>
-    fetch(`${BASE}/auth/login`, {
+  login: (payload) => {
+    const form = new URLSearchParams();
+    form.append("username", payload.email);
+    form.append("password", payload.password);
+    return fetch(`${BASE}/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(handle),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form,
+    }).then(handle);
+  },
 
   listDocuments: (statusFilter) => {
     const qs = statusFilter ? `?status_filter=${statusFilter}` : "";

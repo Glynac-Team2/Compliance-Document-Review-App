@@ -26,17 +26,44 @@ npm install
 npm run dev
 ```
 
+## Database Seeding Pipeline
+To initialize the database with compliance rules and the default test user, run:
+```bash
+docker compose up -d --build
+docker compose exec backend python -m app.seed_db
+
 Then open http://localhost:5173, sign up as an advisor in one browser
 (or incognito) tab and an officer in another, and run a document through
 the full lifecycle.
 
-Built and working: two-role auth with server-side enforcement, file upload (PDF/DOCX/XLSX, 10MB cap), the officer queue and advisor submissions list, decisions (approve / reject / needs revision) with a required comment, revision resubmission linked into one thread, an append-only audit trail, server-side PII masking (regex/heuristic per pii_masking_specification.md, tested), and AI-generated summary + flags via a free-tier LLM (Gemini), cached per document.
+## Test Accounts
+The application comes pre-configured with seeded roles for testing workflow functionality:
+* **Advisor Account**: `advisor@example.com` / `password123`
+* **Officer Account**: `officer@example.com` / `password123`
 
-GET /documents/{id}/assist now runs the real pipeline: masks PII in code before anything leaves the app, checks a small static rule corpus (not yet wired to Data Engineering's PrecedentIndex/ComplianceCorpus tables — that integration is the next step), calls the LLM, and caches the result. If LLM_API_KEY isn't set or the call fails, it degrades to available: false without breaking the review page.
+## Recent Updates & Fixes
+* **Python 3.13 / Passlib Fix**: Hardened `CryptContext` configuration in `app/security.py` to ensure modern bcrypt compatibility.
+* **Database & Seeding**: Added robust schema management and `seed_user.py` script to handle clean resets and dynamic password hashing without foreign key conflicts.
 
-Stubbed on purpose: precedents in the assist response return empty until the AI track integrates with Data Engineering's precedent tables.
+## What's real vs. stubbed
 
-Out of scope per the spec: per-officer routing/assignment, fine-tuning or self-hosting a model, production-grade PII detection.
+Built and working: two-role auth with server-side enforcement, file
+upload (PDF/DOCX/XLSX, 10MB cap), the officer queue and advisor
+submissions list, decisions (approve / reject / needs revision) with a
+required comment, revision resubmission linked into one thread, and an
+append-only audit trail.
+
+Stubbed on purpose: `GET /documents/{id}/assist` returns a fixed
+placeholder response (or an "unavailable" response if `LLM_API_KEY`
+isn't set) rather than calling a real LLM or vector store. That's the
+AI and Data Engineering tracks' work — the frontend already builds
+against the response shape (`AssistOut`), so plugging in the real
+analysis shouldn't require frontend changes. This also means the
+"review page still works when the AI is down" requirement is already
+satisfied by default, not something to retrofit later.
+
+Out of scope per the spec: per-officer routing/assignment, fine-tuning
+or self-hosting a model, production-grade PII detection.
 
 ## Team tracks
 
