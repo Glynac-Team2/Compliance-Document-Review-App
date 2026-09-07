@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from .seed_user import seed_test_user
+from app.seed_user import seed_test_user
 from app.database import Base, engine, get_db
 from app.routers import auth, documents, reviews
 
