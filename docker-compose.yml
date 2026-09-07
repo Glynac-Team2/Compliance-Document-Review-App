@@ -25,6 +25,8 @@ services:
             - ./backend/.env
         environment:
             DATABASE_URL: postgresql://compliance_user:compliance_pass@postgres:5432/compliance_db
+        volumes:
+            - ./backend/uploads:/app/uploads
         healthcheck:
             test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
             interval: 5s
