@@ -65,3 +65,47 @@ def test_revision_thread(client: TestClient):
     assert thread[0]["label"] == "Original submission"
     assert thread[1]["id"] == new_doc_id
     assert thread[1]["label"] == "Revision 1 — current"
+
+
+def test_second_decision_rejected_with_409(client: TestClient):
+    advisor_token = client.post(
+        "/auth/signup",
+        json={
+            "email": "a@x.com",
+            "name": "A",
+            "password": "password",
+            "role": "advisor",
+        },
+    ).json()["access_token"]
+
+    r = client.post(
+        "/documents",
+        headers={"Authorization": f"Bearer {advisor_token}"},
+        files={"file": ("test.pdf", io.BytesIO(b"123"), "application/pdf")},
+    )
+    assert r.status_code == 201
+    doc_id = r.json()["id"]
+
+    officer_token = client.post(
+        "/auth/signup",
+        json={
+            "email": "b@x.com",
+            "name": "B",
+            "password": "password",
+            "role": "officer",
+        },
+    ).json()["access_token"]
+
+    r = client.post(
+        f"/documents/{doc_id}/decision",
+        headers={"Authorization": f"Bearer {officer_token}"},
+        json={"status": DocStatus.approved.value, "comment": "looks good"},
+    )
+    assert r.status_code == 201
+
+    r = client.post(
+        f"/documents/{doc_id}/decision",
+        headers={"Authorization": f"Bearer {officer_token}"},
+        json={"status": DocStatus.rejected.value, "comment": "changed my mind"},
+    )
+    assert r.status_code == 409
