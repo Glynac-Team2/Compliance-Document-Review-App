@@ -5,7 +5,12 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Explicitly configure passlib for modern bcrypt compatibility
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__default_rounds=12
+)
 
 
 def hash_password(password: str) -> str:
@@ -13,7 +18,10 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    try:
+        return pwd_context.verify(password, password_hash)
+    except Exception:
+        return False
 
 
 def create_access_token(subject: str, role: str) -> str:

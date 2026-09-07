@@ -36,6 +36,15 @@ Then open http://localhost:5173, sign up as an advisor in one browser
 (or incognito) tab and an officer in another, and run a document through
 the full lifecycle.
 
+## Test Accounts
+The application comes pre-configured with seeded roles for testing workflow functionality:
+* **Advisor Account**: `advisor@example.com` / `password123`
+* **Officer Account**: `officer@example.com` / `password123`
+
+## Recent Updates & Fixes
+* **Python 3.13 / Passlib Fix**: Hardened `CryptContext` configuration in `app/security.py` to ensure modern bcrypt compatibility.
+* **Database & Seeding**: Added robust schema management and `seed_user.py` script to handle clean resets and dynamic password hashing without foreign key conflicts.
+
 ## What's real vs. stubbed
 
 Built and working: two-role auth with server-side enforcement, file
