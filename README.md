@@ -26,6 +26,12 @@ npm install
 npm run dev
 ```
 
+## Database Seeding Pipeline
+To initialize the database with compliance rules and the default test user, run:
+```bash
+docker compose up -d --build
+docker compose exec backend python -m app.seed_db
+
 Then open http://localhost:5173, sign up as an advisor in one browser
 (or incognito) tab and an officer in another, and run a document through
 the full lifecycle.
