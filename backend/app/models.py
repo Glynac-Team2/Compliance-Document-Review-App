@@ -49,6 +49,7 @@ class Document(Base):
     advisor_id = Column(String, ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
+    extracted_text = Column(Text, nullable=True)
     content_type = Column(String, nullable=False)
     status = Column(SAEnum(DocStatus), default=DocStatus.pending, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
