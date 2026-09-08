@@ -27,6 +27,8 @@ from __future__ import annotations
 import logging
 from sqlalchemy.orm import Session
 
+from sqlalchemy.exc import IntegrityError
+
 from app.config import settings
 from app.models import Document, AIAnalysis, Flag as FlagModel, PIIMapping as PIIMappingModel
 from app.schemas import AssistOut, FlagOut, PrecedentOut
@@ -48,8 +50,12 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
     with a message, per the "review page still works with AI down"
     requirement."""
 
+    doc_id = doc.id  # capture as a plain string now — never touch ORM
+    # attributes on `doc` after a failed commit below, since a rolled-back
+    # session will try to re-query and can raise a second, worse error.
+
     # ---- 1. Cache check ----
-    cached = db.query(AIAnalysis).filter(AIAnalysis.document_id == doc.id).first()
+    cached = db.query(AIAnalysis).filter(AIAnalysis.document_id == doc_id).first()
     if cached:
         return _to_assist_out(cached, db, doc)
 
@@ -101,14 +107,32 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
 
     # ---- 4. Persist (cache for next time) ----
     try:
-        analysis = AIAnalysis(document_id=doc.id, summary=summary)
+        analysis = AIAnalysis(document_id=doc_id, summary=summary)
         analysis.flags = flag_rows
         db.add(analysis)
-        db.add(PIIMappingModel.store(doc.id, mapping.to_dict()))
+        db.add(PIIMappingModel.store(doc_id, mapping.to_dict()))
         db.commit()
-    except Exception:
-        logger.exception("assist: failed to persist analysis for %s (returning result anyway)", doc.id)
+    except IntegrityError:
+        # Two concurrent /assist calls for the same document raced each
+        # other — the other one already wrote the cache row first. Roll
+        # back immediately (BEFORE any logging or further ORM attribute
+        # access — this session's transaction is dead until then), then
+        # just use whatever the winner wrote instead of erroring out.
         db.rollback()
+        logger.info("assist: concurrent cache write for %s, using existing row", doc_id)
+        existing = db.query(AIAnalysis).filter(AIAnalysis.document_id == doc_id).first()
+        if existing:
+            return _to_assist_out(existing, db, doc)
+        # Extremely unlikely fallthrough: row vanished between the
+        # failed insert and this re-query. Just return the freshly
+        # computed (uncached) result rather than erroring.
+    except Exception:
+        # Roll back FIRST — accessing any attribute on `doc` (including
+        # doc.id) after a failed flush/commit re-triggers a query on a
+        # dead transaction and raises a second, unrelated error that
+        # would mask this one entirely.
+        db.rollback()
+        logger.exception("assist: failed to persist analysis for %s (returning result anyway)", doc_id)
 
     precedents = _get_precedents(masked_text, db)
     return AssistOut(available=True, summary=summary, flags=flags_out, precedents=precedents)
