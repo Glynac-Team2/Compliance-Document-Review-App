@@ -9,7 +9,7 @@ from app.models import DocStatus, Role
 
 class SignupIn(BaseModel):
     email: EmailStr
-    name: str = Field(min_length=3)
+    name: str = Field(min_length=1)
     password: str = Field(min_length=8)
     role: Role
 
