@@ -1,17 +1,16 @@
 from datetime import datetime
-from typing import Optional, List
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
-from app.models import Role, DocStatus
-
+from app.models import DocStatus, Role
 
 # ---- Auth ----
 
+
 class SignupIn(BaseModel):
     email: EmailStr
-    name: str
-    password: str
+    name: str = Field(min_length=3)
+    password: str = Field(min_length=8)
     role: Role
 
 
@@ -29,6 +28,7 @@ class TokenOut(BaseModel):
 
 # ---- Users ----
 
+
 class UserOut(BaseModel):
     id: str
     name: str
@@ -40,6 +40,7 @@ class UserOut(BaseModel):
 
 
 # ---- Reviews ----
+
 
 class ReviewIn(BaseModel):
     status: DocStatus  # approved | rejected | needs_revision
@@ -59,6 +60,7 @@ class ReviewOut(BaseModel):
 
 # ---- Documents ----
 
+
 class ThreadEntry(BaseModel):
     id: str
     filename: str
@@ -72,18 +74,19 @@ class DocumentOut(BaseModel):
     status: DocStatus
     uploaded_at: datetime
     advisor: UserOut
-    revises_id: Optional[str] = None
-    reviews: List[ReviewOut] = []
+    revises_id: str | None = None
+    reviews: list[ReviewOut] = []
 
     class Config:
         from_attributes = True
 
 
 class DocumentDetailOut(DocumentOut):
-    thread: List[ThreadEntry] = []
+    thread: list[ThreadEntry] = []
 
 
 # ---- AI assist (stub — real implementation belongs to the AI track) ----
+
 
 class FlagOut(BaseModel):
     severity: str
@@ -100,7 +103,7 @@ class PrecedentOut(BaseModel):
 
 class AssistOut(BaseModel):
     available: bool
-    summary: Optional[str] = None
-    flags: List[FlagOut] = []
-    precedents: List[PrecedentOut] = []
-    error: Optional[str] = None
+    summary: str | None = None
+    flags: list[FlagOut] = []
+    precedents: list[PrecedentOut] = []
+    error: str | None = None
