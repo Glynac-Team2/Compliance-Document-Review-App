@@ -160,12 +160,11 @@ export default function OfficerDashboard() {
               <span className="flex items-center gap-1"><Clock size={13} />{new Date(detail.uploaded_at).toLocaleString()}</span>
             </div>
 
-            <div className="mb-6 rounded-lg p-5" style={{ background: "#F5F6F8", minHeight: "120px" }}>
-              <p className="text-sm leading-relaxed" style={{ color: "#5B6472" }}>
-                {detail.content_type} — file stored server-side at upload. A real preview/extractor
-                (Data Engineering's ingestion pipeline) would render the actual text here.
-              </p>
-            </div>
+            <div className="mb-6 rounded-lg p-5" style={{ background: "#F5F6F8", minHeight: "120px", maxHeight: "400px", overflowY: "auto" }}>
+  <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans" style={{ color: "#16202E" }}>
+    {detail.extracted_text || "No text could be extracted from this document."}
+  </pre>
+</div>
 
             {detail.reviews?.length > 0 && (
               <div className="mb-5 space-y-2">

@@ -33,7 +33,7 @@ from app.config import settings
 from app.models import Document, AIAnalysis, Flag as FlagModel, PIIMapping as PIIMappingModel
 from app.schemas import AssistOut, FlagOut, PrecedentOut
 from app.ai.masker import PIIMasker, PIIMapping
-from app.ai.text_extraction import extract_text, UnsupportedDocumentType
+from app.ai.text_extraction import extract_text
 from app.ai.rules_seed import get_active_rules
 from app.ai.retrieval import find_precedents
 from app.ai.prompt import build_prompt
@@ -59,18 +59,25 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
     if cached:
         return _to_assist_out(cached, db, doc)
 
-    # ---- 2. Extract + mask + call LLM (cache miss) ----
-    try:
-        raw_text = extract_text(doc)
-    except UnsupportedDocumentType as e:
-        logger.warning("assist: unsupported document type for %s: %s", doc.id, e)
-        return AssistOut(available=False, error="This file type isn't supported for AI analysis.")
-    except Exception as e:
-        logger.exception("assist: text extraction failed for %s", doc.id)
-        return AssistOut(available=False, error="Couldn't read the document contents.")
+    # ---- 2. Get extracted text + mask + call LLM (cache miss) ----
+    # Prefer the text already extracted at upload time (documents.py)
+    # and stored on the row — avoids re-reading and re-parsing the file
+    # a second time. Only fall back to a fresh extraction for documents
+    # uploaded before that existed.
+    raw_text = (doc.extracted_text or "").strip()
+    if not raw_text:
+        try:
+            raw_text = extract_text(doc).strip()
+        except Exception:
+            logger.exception("assist: text extraction failed for %s", doc_id)
+            return AssistOut(available=False, error="Couldn't read the document contents.")
 
-    if not raw_text.strip():
+    if not raw_text:
         return AssistOut(available=False, error="No extractable text was found in this document.")
+
+    if raw_text.startswith("[Error extracting text:"):
+        logger.warning("assist: stored extracted_text for %s was an error string: %s", doc_id, raw_text)
+        return AssistOut(available=False, error="Couldn't read the document contents.")
 
     masked_text, mapping = _masker.mask(raw_text)
 

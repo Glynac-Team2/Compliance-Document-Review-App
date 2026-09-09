@@ -76,6 +76,7 @@ class DocumentOut(BaseModel):
     advisor: UserOut
     revises_id: str | None = None
     reviews: list[ReviewOut] = []
+    extracted_text: str | None = None
 
     class Config:
         from_attributes = True

@@ -11,6 +11,7 @@ from app.deps import get_current_user, require_role
 from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
 from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut, FlagOut, PrecedentOut
 from app.ai.service import run_assist
+from app.ai.text_extraction import extract_file_text
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -74,6 +75,10 @@ async def submit_document(
         if original.status != DocStatus.needs_revision:
             raise HTTPException(status_code=400, detail="Only a document marked 'needs revision' can be resubmitted")
 
+    # Extraction runs after validation above — no point extracting text
+    # from a file that's about to be rejected as an invalid revision.
+    extracted_text_content = extract_file_text(contents, file.content_type, file.filename)
+
     os.makedirs(settings.upload_dir, exist_ok=True)
     doc = Document(
         advisor_id=user.id,
@@ -82,6 +87,7 @@ async def submit_document(
         content_type=file.content_type,
         status=DocStatus.pending,
         revises_id=revises_id,
+        extracted_text=extracted_text_content,
     )
     db.add(doc)
     db.commit()
