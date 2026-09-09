@@ -1,4 +1,3 @@
-from importlib.resources import contents
 import os
 import shutil
 from typing import Optional, List
@@ -12,6 +11,7 @@ from app.deps import get_current_user, require_role
 from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
 from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut, FlagOut, PrecedentOut
 from app.ai.service import run_assist
+from app.ai.text_extraction import extract_file_text
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -20,35 +20,6 @@ ALLOWED_CONTENT_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
 }
-import io
-import pypdf
-from docx import Document as DocxDocument
-import openpyxl
-
-def extract_file_text(file_bytes: bytes, content_type: str, filename: str) -> str:
-    try:
-        if content_type == "application/pdf" or filename.endswith(".pdf"):
-            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-            return "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-        
-        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or filename.endswith(".docx"):
-            doc = DocxDocument(io.BytesIO(file_bytes))
-            return "\n".join([para.text for para in doc.paragraphs if para.text])
-        
-        elif content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or filename.endswith(".xlsx"):
-            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-            text_acc = []
-            for sheet in wb.sheetnames:
-                ws = wb[sheet]
-                for row in ws.iter_rows(values_only=True):
-                    row_str = " ".join([str(cell) for cell in row if cell is not None])
-                    if row_str:
-                        text_acc.append(row_str)
-            return "\n".join(text_acc)
-    except Exception as e:
-        return f"[Error extracting text: {str(e)}]"
-    
-    return file_bytes.decode("utf-8", errors="ignore")
 
 
 def _log(db: Session, actor_id: str, document_id: str, action: AuditAction):
@@ -94,8 +65,7 @@ async def submit_document(
     size_mb = len(contents) / (1024 * 1024)
     if size_mb > settings.max_upload_mb:
         raise HTTPException(status_code=400, detail=f"File exceeds the {settings.max_upload_mb}MB limit")
-    
-    extracted_text_content = extract_file_text(contents, file.content_type, file.filename)
+
     if revises_id:
         original = db.query(Document).filter(Document.id == revises_id).first()
         if not original:
@@ -104,6 +74,10 @@ async def submit_document(
             raise HTTPException(status_code=403, detail="You can only revise your own submissions")
         if original.status != DocStatus.needs_revision:
             raise HTTPException(status_code=400, detail="Only a document marked 'needs revision' can be resubmitted")
+
+    # Extraction runs after validation above — no point extracting text
+    # from a file that's about to be rejected as an invalid revision.
+    extracted_text_content = extract_file_text(contents, file.content_type, file.filename)
 
     os.makedirs(settings.upload_dir, exist_ok=True)
     doc = Document(
