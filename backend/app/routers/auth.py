@@ -24,6 +24,7 @@ def signup(
             detail=[
                 error_detail(
                     message="An account with this email already exists",
+                    field="email",
                 )
             ],
         )
