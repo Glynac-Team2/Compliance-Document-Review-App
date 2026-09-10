@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 
 from app.database import get_db
+from app.errors import error_detail
 from app.models import User
 from app.schemas import SignupIn, TokenOut
 from app.security import create_access_token, hash_password, verify_password
@@ -18,7 +20,12 @@ def signup(
     email = payload.email.lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(
-            status_code=400, detail="An account with this email already exists"
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=[
+                error_detail(
+                    message="An account with this email already exists",
+                )
+            ],
         )
 
     user = User(
@@ -42,7 +49,14 @@ def login(
 ):
     user = db.query(User).filter(User.email == payload.username.lower()).first()
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=[
+                error_detail(
+                    message="Incorrect email or password",
+                )
+            ],
+        )
 
     token = create_access_token(subject=user.id, role=user.role.value)
     return TokenOut(access_token=token, role=user.role, name=user.name)

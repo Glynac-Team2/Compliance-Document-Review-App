@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 
 from app.database import get_db
 from app.deps import require_role
-from app.models import Document, Review, User, Role, DocStatus, AuditAction
-from app.schemas import ReviewIn, ReviewOut
+from app.errors import error_detail
+from app.models import AuditAction, DocStatus, Document, Review, Role, User
 from app.routers.documents import _log
+from app.schemas import ReviewIn, ReviewOut
 
 router = APIRouter(prefix="/documents", tags=["reviews"])
 
@@ -19,13 +21,30 @@ def record_decision(
 ):
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=[error_detail(message="Document not found")],
+        )
 
     if doc.status != DocStatus.pending:
-        raise HTTPException(status_code=409, detail="Document was already decided")
+        raise HTTPException(
+            status_code=HTTP_409_CONFLICT,
+            detail=[error_detail(message="Document was already decided")],
+        )
 
-    if payload.status not in (DocStatus.approved, DocStatus.rejected, DocStatus.needs_revision):
-        raise HTTPException(status_code=400, detail="Decision must be approved, rejected, or needs_revision")
+    if payload.status not in (
+        DocStatus.approved,
+        DocStatus.rejected,
+        DocStatus.needs_revision,
+    ):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=[
+                error_detail(
+                    message="Decision must be approved, rejected, or needs_revision"
+                )
+            ],
+        )
 
     review = Review(
         document_id=doc.id,
