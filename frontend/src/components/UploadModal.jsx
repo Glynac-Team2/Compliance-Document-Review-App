@@ -13,7 +13,6 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
     setError('');
 
     if (selectedFile) {
-      // Validate allowed file types (PDF, Word, Text)
       const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
       if (!allowedTypes.includes(selectedFile.type)) {
         setError('Invalid file type. Please upload a PDF, DOCX, or TXT file.');
@@ -21,7 +20,6 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         return;
       }
 
-      // Optional: Size validation (e.g., max 10MB)
       if (selectedFile.size > 10 * 1024 * 1024) {
         setError('File size exceeds the 10MB limit.');
         setFile(null);
@@ -98,7 +96,6 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                  >
                   </svg>
                   Uploading...
                 </>
