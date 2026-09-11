@@ -13,6 +13,7 @@ See each folder's README for setup. Quick start:
 
 ```bash
 # terminal 1
+docker compose up -d
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -25,9 +26,24 @@ npm install
 npm run dev
 ```
 
+## Database Seeding Pipeline
+To initialize the database with compliance rules and the default test user, run:
+```bash
+docker compose up -d --build
+docker compose exec backend python -m app.seed_db
+
 Then open http://localhost:5173, sign up as an advisor in one browser
 (or incognito) tab and an officer in another, and run a document through
 the full lifecycle.
+
+## Test Accounts
+The application comes pre-configured with seeded roles for testing workflow functionality:
+* **Advisor Account**: `advisor@example.com` / `password123`
+* **Officer Account**: `officer@example.com` / `password123`
+
+## Recent Updates & Fixes
+* **Python 3.13 / Passlib Fix**: Hardened `CryptContext` configuration in `app/security.py` to ensure modern bcrypt compatibility.
+* **Database & Seeding**: Added robust schema management and `seed_user.py` script to handle clean resets and dynamic password hashing without foreign key conflicts.
 
 ## What's real vs. stubbed
 
@@ -51,10 +67,10 @@ or self-hosting a model, production-grade PII detection.
 
 ## Team tracks
 
-| Track | Status here |
-|---|---|
-| Backend | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
-| Frontend | Done for the core loop — see `frontend/README.md` |
-| AI | Not started — plug into `get_assist()` in `backend/app/routers/documents.py` |
-| Data engineering | Not started — ingestion, chunking, embeddings, retrieval all TBD |
-| DevOps / platform | Not started — no docker-compose yet, SQLite for now, no CI |
+| Track             | Status here                                                                  |
+| ----------------- | ---------------------------------------------------------------------------- |
+| Backend           | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
+| Frontend          | Done for the core loop — see `frontend/README.md`                            |
+| AI                |Masking + LLM summary/flags done, tested end-to-end with a real key (3 PRs merged) |
+| Data engineering  |pgvector models, PrecedentIndex/ComplianceCorpus tables,seeding pipeline merged |
+| DevOps / platform | Postgres/pgvector via docker-compose, CI running tests on every push         |

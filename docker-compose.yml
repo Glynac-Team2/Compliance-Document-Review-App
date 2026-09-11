@@ -10,5 +10,42 @@ services:
         volumes:
             - postgres-data:/var/lib/postgresql
             - ./backend/db/init:/docker-entrypoint-initdb.d
+        healthcheck:
+            test: ["CMD", "pg_isready", "-U", "compliance_user", "-d", "compliance_db"]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+
+    backend:
+        build:
+            context: ./backend
+        ports:
+            - "8000:8000"
+        env_file:
+            - ./backend/.env
+        environment:
+            DATABASE_URL: postgresql://compliance_user:compliance_pass@postgres:5432/compliance_db
+        volumes:
+            - ./backend/uploads:/app/uploads
+        healthcheck:
+            test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+            interval: 5s
+            timeout: 3s
+            retries: 5
+        depends_on:
+            postgres:
+                condition: service_healthy
+
+    frontend:
+        build:
+            context: ./frontend
+        ports:
+            - "5173:5173"
+        environment:
+            VITE_API_URL: http://backend:8000
+        depends_on:
+            backend:
+                condition: service_healthy
+
 volumes:
     postgres-data:

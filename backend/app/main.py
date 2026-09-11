@@ -1,13 +1,42 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_503_SERVICE_UNAVAILABLE
 
-from app.database import Base, engine
+from app.database import Base, engine, get_db
+from app.errors import error_detail
 from app.routers import auth, documents, reviews
+from app.seed_user import seed_test_user
 
 # For a real migration story swap this for Alembic; fine for local dev.
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Compliance Document Review API")
+
+
+@app.on_event("startup")
+def startup_event():
+    seed_test_user()
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": [
+                error_detail(
+                    field=e["loc"][-1],
+                    message=e["msg"],
+                )
+                for e in exc.errors()
+            ],
+        },
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,5 +52,12 @@ app.include_router(reviews.router)
 
 
 @app.get("/health")
-def health():
+def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTP_503_SERVICE_UNAVAILABLE,
+            detail=[error_detail(message=f"Database unavailable: {e}")],
+        )
     return {"status": "ok"}
