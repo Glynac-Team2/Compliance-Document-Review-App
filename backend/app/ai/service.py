@@ -204,7 +204,7 @@ def get_outbound_payload_preview(doc: Document, db: Session) -> str:
     inspected and asserted against (real client values absent,
     placeholders present).
     """
-    raw_text = extract_text(doc)
+    raw_text = (doc.extracted_text or "").strip() or extract_text(doc)
     masked_text, _mapping = _masker.mask(raw_text)
     rules = get_active_rules(masked_text, db)
     return build_prompt(masked_text, rules)
