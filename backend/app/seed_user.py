@@ -15,32 +15,30 @@ def seed_test_user():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # Clear existing records to avoid foreign key conflicts and bad hashes
-        db.query(AuditEvent).delete()
-        db.query(Document).delete()
-        db.query(User).delete()
+        # Check if test advisor already exists instead of wiping the database
+        existing_user = db.query(User).filter(User.email == "advisor@example.com").first()
+        if not existing_user:
+            advisor = User(
+                email="advisor@example.com",
+                name="Test Advisor",
+                password_hash=hash_password("password123"),
+                role="advisor"
+            )
+            db.add(advisor)
 
-        # Seed Advisor
-        advisor = User(
-            email="advisor@example.com",
-            name="Test Advisor",
-            password_hash=hash_password("password123"),
-            role="advisor"
-        )
-        db.add(advisor)
-        print("Advisor user created.")
+            officer = User(
+                email="officer@example.com",
+                name="Test Officer",
+                password_hash=hash_password("password123"),
+                role="officer"
+            )
+            db.add(officer)
 
-        # Seed Officer
-        officer = User(
-            email="officer@example.com",
-            name="Test Officer",
-            password_hash=hash_password("password123"),
-            role="officer"
-        )
-        db.add(officer)
-        print("Officer user created.")
-
-        db.commit()
+            db.commit()
+            print("Test users created successfully.")
+        else:
+            print("Test users already exist. Skipping seed.")
+            
     except Exception as e:
         db.rollback()
         print(f"Error: {e}")
