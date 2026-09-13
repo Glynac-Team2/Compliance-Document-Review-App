@@ -1,4 +1,4 @@
-const BASE = process.env.REACT_APP_API_BASE || '/api';
+const BASE = import.meta.env.VITE_API_URL || '/api';
 
 function authHeaders() {
   const token = localStorage.getItem("token");
@@ -45,7 +45,7 @@ export async function submitDocument(file, revisesId) {
   const qs = revisesId ? `?revises_id=${revisesId}` : "";
   return fetch(`${BASE}/documents${qs}`, {
     method: "POST",
-    headers: authHeaders(), // don't set Content-Type – browser sets the multipart boundary
+    headers: authHeaders(), // don't set Content-Type - browser sets the multipart boundary
     body: form,
   }).then(handle);
 }
