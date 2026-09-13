@@ -31,11 +31,6 @@ ALLOWED_CONTENT_TYPES = {
 }
 
 
-def _log(db: Session, actor_id: str, document_id: str, action: AuditAction):
-    db.add(AuditEvent(actor_id=actor_id, document_id=document_id, action=action))
-    db.commit()
-
-
 def _build_thread(db: Session, doc: Document) -> list[ThreadEntry]:
     """Walk revises_id back to the root, then present oldest → newest so a
     revise → resubmit → approve cycle reads as one linked history."""
@@ -136,12 +131,14 @@ async def submit_document(
     db.commit()
     db.refresh(doc)
 
-    _log(
-        db,
-        user.id,
-        doc.id,
-        AuditAction.resubmitted if revises_id else AuditAction.submitted,
+    db.add(
+        AuditEvent(
+            actor_id=user.id,
+            document_id=doc.id,
+            action=AuditAction.resubmitted if revises_id else AuditAction.submitted,
+        )
     )
+    db.commit()
     return doc
 
 
@@ -183,7 +180,14 @@ def get_document(
             detail=[error_detail(message="You can only view your own submissions")],
         )
 
-    _log(db, user.id, doc.id, AuditAction.viewed)
+    db.add(
+        AuditEvent(
+            actor_id=user.id,
+            document_id=doc.id,
+            action=AuditAction.viewed,
+        )
+    )
+    db.commit()
     thread = _build_thread(db, doc)
     out = DocumentDetailOut.model_validate(doc)
     out.thread = thread
