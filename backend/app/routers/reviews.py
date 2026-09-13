@@ -5,8 +5,7 @@ from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_409_
 from app.database import get_db
 from app.deps import require_role
 from app.errors import error_detail
-from app.models import AuditAction, DocStatus, Document, Review, Role, User
-from app.routers.documents import _log
+from app.models import AuditAction, AuditEvent, DocStatus, Document, Review, Role, User
 from app.schemas import ReviewIn, ReviewOut
 
 router = APIRouter(prefix="/documents", tags=["reviews"])
@@ -56,8 +55,13 @@ def record_decision(
 
     # The AI never sets this — only a human decision reaches this line.
     doc.status = payload.status
+    db.add(
+        AuditEvent(
+            actor_id=officer.id,
+            document_id=doc.id,
+            action=AuditAction.decided,
+        )
+    )
     db.commit()
     db.refresh(review)
-
-    _log(db, officer.id, doc.id, AuditAction.decided)
     return review
