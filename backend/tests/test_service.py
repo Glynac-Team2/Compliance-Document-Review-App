@@ -73,7 +73,7 @@ class TestCacheMissSuccess:
             flags=[{"severity": "high", "passage": "guaranteed 12% return", "rule_id": "R-TEST-01", "reason": "Guarantees a return."}],
         )
         with patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm, \
-             patch("app.ai.service.get_active_rules", return_value=FAKE_RULES):
+             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
             result = run_assist(doc, db_session)
 
         assert result.available is True
@@ -98,7 +98,7 @@ class TestCacheMissSuccess:
 
         fake_result = LLMAssistResult(summary="ok", flags=[])
         with patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm, \
-             patch("app.ai.service.get_active_rules", return_value=[]):
+             patch("app.ai.service.retrieve_relevant_rules", return_value=[]):
             run_assist(doc, db_session)
 
         sent_prompt = mock_llm.call_args[0][0]  # first positional arg to generate_assist
@@ -119,7 +119,7 @@ class TestCacheMissSuccess:
             flags=[{"severity": "medium", "passage": "p", "rule_id": "MADE-UP-RULE", "reason": "r"}],
         )
         with patch("app.ai.service.generate_assist", return_value=fake_result), \
-             patch("app.ai.service.get_active_rules", return_value=FAKE_RULES):
+             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
             result = run_assist(doc, db_session)
 
         assert result.available is True
@@ -132,7 +132,7 @@ class TestDegradedStates:
         doc = _make_document(db_session, user, "Some document text.")
 
         with patch("app.ai.service.generate_assist", side_effect=LLMError("simulated failure")), \
-             patch("app.ai.service.get_active_rules", return_value=FAKE_RULES):
+             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
             result = run_assist(doc, db_session)
 
         assert result.available is False
@@ -182,7 +182,7 @@ class TestRaceCondition:
             return real_commit()
 
         with patch("app.ai.service.generate_assist", return_value=fake_result), \
-             patch("app.ai.service.get_active_rules", return_value=[]), \
+             patch("app.ai.service.retrieve_relevant_rules", return_value=[]), \
              patch.object(db_session, "commit", side_effect=commit_that_loses_the_race):
             result = run_assist(doc, db_session)
 
