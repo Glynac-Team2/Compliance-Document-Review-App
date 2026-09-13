@@ -14,3 +14,6 @@ frontend/dist/
 # general
 .DS_Store
 *.pyc
+
+# Vercel
+.vercel/
