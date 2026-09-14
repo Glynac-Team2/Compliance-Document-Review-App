@@ -64,8 +64,8 @@ export async function decide(id, status, comment) {
   }).then(handle);
 }
 
-async function download(id) {
-  const res = await fetch(`${BASE}/documents/${id}/download`, {
+async function fetchBlob(path) {
+  const res = await fetch(path, {
     headers: { ...authHeaders() },
   });
   if (!res.ok) {
@@ -88,6 +88,14 @@ async function download(id) {
   return res.blob();
 }
 
+async function download(id) {
+  return fetchBlob(`${BASE}/documents/${id}/download`);
+}
+
+async function preview(id) {
+  return fetchBlob(`${BASE}/documents/${id}/preview`);
+}
+
 export const api = {
   listDocuments,
   getDocument,
@@ -95,6 +103,7 @@ export const api = {
   submitDocument,
   decide,
   download,
+  preview,
   signup: (payload) =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",

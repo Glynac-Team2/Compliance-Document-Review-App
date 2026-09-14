@@ -167,6 +167,22 @@ def download_document(document_id: str, user: User = Depends(get_current_user), 
         headers={"Content-Disposition": f"attachment; filename=\"{doc.filename}\""}
     )
 
+    
+@router.get("/{document_id}/preview")
+def preview_document(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if user.role not in [Role.advisor, Role.officer] and doc.advisor_id != user.id:
+        raise HTTPException(status_code=403, detail="You are forbidden from accessing/performing any actions to this resource")
+
+    return FileResponse(
+        path=doc.file_path, 
+        media_type=doc.content_type, 
+        filename=doc.filename,
+        headers={"Content-Disposition": f"inline; filename=\"{doc.filename}\""}
+    )
+
 
 @router.get("/{document_id}/assist", response_model=AssistOut)
 def get_assist(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

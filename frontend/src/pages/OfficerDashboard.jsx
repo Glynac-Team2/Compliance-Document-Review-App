@@ -14,6 +14,13 @@ import {
 import { api } from "../lib/api";
 import { StatusPill } from "../components/Badges";
 import AssistPanel from "../components/AssistPanel";
+import { Modal } from "../components/Modal";
+import { Document, Page, pdfjs } from "react-pdf";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 const TABS = [
   { key: "", label: "All" },
@@ -22,6 +29,38 @@ const TABS = [
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
 ];
+
+export function FilePreview({ previewURL, contentType }) {
+  const [numPages, setNumPages] = useState(null);
+
+  if (!contentType) return null;
+
+  if (contentType === "application/pdf") {
+    return (
+      <div className="h-[80vh] overflow-y-auto">
+        <div className="flex flex-col items-center gap-4">
+          <Document
+            file={previewURL}
+            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          >
+            {Array.from({ length: numPages || 0 }, (_, index) => (
+              <div key={index} className="mb-4">
+                <Page
+                  pageNumber={index + 1}
+                  width={700}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                />
+              </div>
+            ))}
+          </Document>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 export default function OfficerDashboard() {
   const [filter, setFilter] = useState("");
@@ -33,6 +72,8 @@ export default function OfficerDashboard() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [decisionError, setDecisionError] = useState("");
+  const [previewURL, setPreviewURL] = useState("");
+  const [isPreviewOpen, setPreviewOpen] = useState(false);
 
   const loadQueue = useCallback(() => {
     setLoadingQueue(true);
@@ -99,8 +140,30 @@ export default function OfficerDashboard() {
     document.body.removeChild(a);
   };
 
+  const preview = async () => {
+    const blob = await api.preview(selectedId);
+    const url = URL.createObjectURL(blob);
+    setPreviewURL(url);
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr_320px]">
+      {/* Preview modal */}
+      <Modal
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          URL.revokeObjectURL(previewURL);
+          setPreviewURL("");
+        }}
+      >
+        {detail && (
+          <FilePreview
+            previewURL={previewURL}
+            contentType={detail.content_type}
+          />
+        )}
+      </Modal>
       {/* Queue */}
       <div
         className="rounded-xl border"
@@ -241,11 +304,20 @@ export default function OfficerDashboard() {
                 <Clock size={13} />
                 {new Date(detail.uploaded_at).toLocaleString()}
               </span>
-              <Eye size={13} />
+              <Eye
+                size={13}
+                onClick={async () => {
+                  await preview();
+                  setPreviewOpen(!isPreviewOpen);
+                }}
+                className="cursor-pointer"
+                alt="Preview"
+              />
               <Download
                 size={13}
                 onClick={download}
                 className="cursor-pointer"
+                alt="Download"
               />
             </div>
 
