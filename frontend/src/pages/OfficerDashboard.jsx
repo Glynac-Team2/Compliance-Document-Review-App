@@ -170,7 +170,7 @@ export default function OfficerDashboard() {
               <div className="mb-5 space-y-2">
                 {detail.reviews.map((r) => (
                   <div key={r.id} className="rounded-md px-3 py-2 text-xs" style={{ background: "#F5F6F8", color: "#5B6472" }}>
-                    <strong style={{ color: "#16202E" }}>{r.officer.name}</strong> — {r.status} — "{r.comment}"
+                    <strong style={{ color: "#16202E" }}>{r.officer.name}</strong> — {r.status} — &quot;{r.comment}&quot;
                   </div>
                 ))}
               </div>
