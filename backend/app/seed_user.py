@@ -14,7 +14,6 @@ def seed_test_user():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # 1. Clear existing records first to prevent foreign key conflicts
         db.query(AuditEvent).delete()
         db.query(Review).delete()
         db.query(Document).delete()
