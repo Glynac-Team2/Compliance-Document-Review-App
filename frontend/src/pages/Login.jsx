@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import { useAuth } from "../lib/AuthContext";
@@ -6,14 +6,26 @@ import { useAuth } from "../lib/AuthContext";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Read values directly from the DOM instead of relying solely on
+    // React state, since some browsers autofill inputs without firing
+    // the onChange event React listens to, leaving state stale/empty.
+    const email = emailRef.current.value;
+    const password = passwordRef.current.value;
+
+    if (!email || !password) {
+      setError("Please fill in both email and password.");
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await login(email, password);
@@ -42,8 +54,8 @@ export default function Login() {
             type="email"
             required
             placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            ref={emailRef}
+            defaultValue=""
             className="w-full rounded-md border px-3 py-2 text-sm outline-none"
             style={{ borderColor: "#D7DCE3" }}
           />
@@ -51,8 +63,8 @@ export default function Login() {
             type="password"
             required
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            ref={passwordRef}
+            defaultValue=""
             className="w-full rounded-md border px-3 py-2 text-sm outline-none"
             style={{ borderColor: "#D7DCE3" }}
           />

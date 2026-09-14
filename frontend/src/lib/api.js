@@ -72,9 +72,10 @@ export const api = {
     }).then(handle),
   login: (payload) => {
     const form = new URLSearchParams();
-    for (const key in payload) {
-      form.append(key, payload[key]);
-    }
+    // FastAPI's OAuth2PasswordRequestForm requires the field to be named
+    // "username", even though our app logs in with an email address.
+    form.append("username", payload.email);
+    form.append("password", payload.password);
     return fetch(`${BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
