@@ -8,7 +8,7 @@ the background-task scheduling logic, not auth/routing.
 
 import io
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from fastapi import UploadFile, BackgroundTasks
 
 from app.models import User, Role

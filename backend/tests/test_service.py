@@ -8,7 +8,6 @@ no real network call, no real API key needed, runs safely in CI.
 Run with: pytest tests/test_service.py -v
 """
 
-import pytest
 from unittest.mock import patch
 from sqlalchemy.orm import sessionmaker
 

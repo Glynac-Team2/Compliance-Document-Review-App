@@ -1,5 +1,4 @@
 import os
-import shutil
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
@@ -9,7 +8,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_role
 from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
-from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut, FlagOut, PrecedentOut
+from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut
 from app.ai.service import run_assist, run_assist_background
 from app.ai.text_extraction import extract_file_text
 

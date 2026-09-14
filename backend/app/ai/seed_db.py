@@ -3,7 +3,7 @@ import httpx
 import os
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine, Base
-from app.models import PrecedentIndex, ComplianceCorpus
+from app.models import PrecedentIndex
 
 # Ensures the new pgvector tables actually get created in PostgreSQL
 Base.metadata.create_all(bind=engine)
