@@ -164,6 +164,7 @@ def download_document(document_id: str, user: User = Depends(get_current_user), 
         path=doc.file_path, 
         media_type=doc.content_type, 
         filename=doc.filename,
+        headers={"Content-Disposition": f"attachment; filename=\"{doc.filename}\""}
     )
 
 
