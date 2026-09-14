@@ -58,12 +58,35 @@ export async function decide(id, status, comment) {
   }).then(handle);
 }
 
+async function download(id) {
+  const res = await fetch(`${BASE}/documents/${id}/download`, {
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (Array.isArray(body.detail)) {
+          detail = body.detail.map((d) => d.message).join(", ");
+      } else if (body.detail) {
+          detail = body.detail;
+      }
+    } catch {}
+
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  return res.blob()
+}
+
 export const api = {
   listDocuments,
   getDocument,
   getAssist,
   submitDocument,
   decide,
+  download,
   signup: (payload) =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",
