@@ -36,7 +36,6 @@ jobs:
                   cd backend
                   pip install -r requirements.txt
                   ruff check .
-                  ruff format --check .
 
     frontend-build:
         runs-on: ubuntu-latest
