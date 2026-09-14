@@ -4,19 +4,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from app.database import Base, engine, SessionLocal
-    from app.models import User, Document, AuditEvent
+    from app.models import User, Document, AuditEvent, Review
     from app.security import hash_password
 except ImportError:
     from database import Base, engine, SessionLocal
-    from models import User, Document, AuditEvent
+    from models import User, Document, AuditEvent, Review
     from security import hash_password
 
 def seed_test_user():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        # Clear existing records to avoid foreign key conflicts and bad hashes
+        # Clear existing records to avoid foreign key conflicts and bad hashes.
+        # Order matters: delete child tables (rows that reference other tables)
+        # before the parent tables they point to.
         db.query(AuditEvent).delete()
+        db.query(Review).delete()
         db.query(Document).delete()
         db.query(User).delete()
 
