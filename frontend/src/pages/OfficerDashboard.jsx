@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   FileText,
   Clock,
@@ -16,6 +16,7 @@ import { StatusPill } from "../components/Badges";
 import AssistPanel from "../components/AssistPanel";
 import { Modal } from "../components/Modal";
 import { Document, Page, pdfjs } from "react-pdf";
+import { renderAsync } from "docx-preview";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -30,36 +31,86 @@ const TABS = [
   { key: "rejected", label: "Rejected" },
 ];
 
-export function FilePreview({ previewURL, contentType }) {
+function PDFPreview({ previewURL }) {
   const [numPages, setNumPages] = useState(null);
 
-  if (!contentType) return null;
-
-  if (contentType === "application/pdf") {
-    return (
-      <div className="h-[80vh] overflow-y-auto">
-        <div className="flex flex-col items-center gap-4">
-          <Document
-            file={previewURL}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-          >
-            {Array.from({ length: numPages || 0 }, (_, index) => (
-              <div key={index} className="mb-4">
-                <Page
-                  pageNumber={index + 1}
-                  width={700}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                />
-              </div>
-            ))}
-          </Document>
-        </div>
+  return (
+    <div className="h-[80vh] overflow-y-auto">
+      <div className="flex flex-col items-center gap-4">
+        <Document
+          file={previewURL}
+          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+        >
+          {Array.from({ length: numPages || 0 }, (_, index) => (
+            <div key={index} className="mb-4">
+              <Page
+                pageNumber={index + 1}
+                width={700}
+                renderAnnotationLayer={false}
+                renderTextLayer={false}
+              />
+            </div>
+          ))}
+        </Document>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
+function DOCXPreview({ previewURL }) {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!previewURL || !containerRef.current) return;
+
+    const renderDocument = async () => {
+      try {
+        const response = await fetch(previewURL);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch document: ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+
+        containerRef.current.innerHTML = "";
+
+        await renderAsync(buffer, containerRef.current);
+      } catch (error) {
+        console.error("DOCX preview error:", error);
+      }
+    };
+
+    renderDocument();
+  }, [previewURL]);
+
+  return (
+    <div className="h-[80vh] overflow-y-auto bg-gray-100 p-4">
+      <div ref={containerRef} />
+    </div>
+  );
+}
+
+function XLSXPreview({ previewURL }) {
   return null;
+}
+
+export function FilePreview({ previewURL, contentType }) {
+  if (!contentType || !previewURL) return null;
+
+  switch (contentType) {
+    case "application/pdf":
+      return <PDFPreview previewURL={previewURL} />;
+
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      return <DOCXPreview previewURL={previewURL} />;
+
+    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      return <XLSXPreview previewURL={previewURL} />;
+
+    default:
+      return null;
+  }
 }
 
 export default function OfficerDashboard() {
@@ -77,13 +128,18 @@ export default function OfficerDashboard() {
 
   const loadQueue = useCallback(() => {
     setLoadingQueue(true);
+
     api
       .listDocuments(filter || undefined)
       .then((docs) => {
         setQueue(docs);
-        if (!selectedId && docs.length) setSelectedId(docs[0].id);
+
+        if (!selectedId && docs.length) {
+          setSelectedId(docs[0].id);
+        }
       })
       .finally(() => setLoadingQueue(false));
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
@@ -96,6 +152,7 @@ export default function OfficerDashboard() {
       setDetail(null);
       return;
     }
+
     api.getDocument(selectedId).then(setDetail);
     setComment("");
     setDecisionError("");
@@ -115,8 +172,10 @@ export default function OfficerDashboard() {
       );
       return;
     }
+
     setSubmitting(true);
     setDecisionError("");
+
     try {
       await api.decide(selectedId, status, comment);
       await api.getDocument(selectedId).then(setDetail);
@@ -131,32 +190,40 @@ export default function OfficerDashboard() {
 
   const download = async () => {
     const blob = await api.download(selectedId);
+    const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = detail.filename;
+
     document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
     document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
   };
 
   const preview = async () => {
     const blob = await api.preview(selectedId);
     const url = URL.createObjectURL(blob);
+
     setPreviewURL(url);
+    setPreviewOpen(true);
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+
+    if (previewURL) {
+      URL.revokeObjectURL(previewURL);
+      setPreviewURL("");
+    }
   };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr_320px]">
       {/* Preview modal */}
-      <Modal
-        isOpen={isPreviewOpen}
-        onClose={() => {
-          setPreviewOpen(false);
-          URL.revokeObjectURL(previewURL);
-          setPreviewURL("");
-        }}
-      >
+      <Modal isOpen={isPreviewOpen} onClose={closePreview}>
         {detail && (
           <FilePreview
             previewURL={previewURL}
@@ -164,6 +231,7 @@ export default function OfficerDashboard() {
           />
         )}
       </Modal>
+
       {/* Queue */}
       <div
         className="rounded-xl border"
@@ -175,6 +243,7 @@ export default function OfficerDashboard() {
             style={{ borderColor: "#D7DCE3" }}
           >
             <Search size={14} style={{ color: "#8A93A1" }} />
+
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -182,6 +251,7 @@ export default function OfficerDashboard() {
               className="w-full bg-transparent text-sm outline-none"
             />
           </div>
+
           <div className="flex flex-wrap gap-1.5">
             {TABS.map((t) => (
               <button
@@ -209,6 +279,7 @@ export default function OfficerDashboard() {
               Loading…
             </div>
           )}
+
           {!loadingQueue && filtered.length === 0 && (
             <div
               className="px-4 py-10 text-center text-sm"
@@ -217,6 +288,7 @@ export default function OfficerDashboard() {
               Nothing in this queue.
             </div>
           )}
+
           {filtered.map((d) => (
             <button
               key={d.id}
@@ -234,12 +306,15 @@ export default function OfficerDashboard() {
                 >
                   {d.id}
                 </span>
+
                 <StatusPill status={d.status} />
               </div>
+
               <div className="flex items-center gap-1.5 text-sm font-medium">
                 <FileText size={14} style={{ color: "#5B6472" }} />
                 <span className="truncate">{d.filename}</span>
               </div>
+
               <div
                 className="flex items-center justify-between text-xs"
                 style={{ color: "#8A93A1" }}
@@ -273,6 +348,7 @@ export default function OfficerDashboard() {
               {detail.thread.map((t, i) => (
                 <React.Fragment key={t.id}>
                   {i > 0 && <ChevronRight size={12} />}
+
                   <span
                     style={{
                       color: t.id === detail.id ? "#1F3157" : "#8A93A1",
@@ -284,6 +360,7 @@ export default function OfficerDashboard() {
                 </React.Fragment>
               ))}
             </div>
+
             <h2
               className="mb-1"
               style={{
@@ -294,30 +371,25 @@ export default function OfficerDashboard() {
             >
               {detail.filename}
             </h2>
+
             <div
-              className="mb-5 flex items-center gap-3 text-sm justify-between"
+              className="mb-5 flex items-center justify-between gap-3 text-sm"
               style={{ color: "#5B6472" }}
             >
               <span>{detail.advisor.name}</span>
               <span>.</span>
+
               <span className="flex items-center gap-1">
                 <Clock size={13} />
                 {new Date(detail.uploaded_at).toLocaleString()}
               </span>
-              <Eye
-                size={13}
-                onClick={async () => {
-                  await preview();
-                  setPreviewOpen(!isPreviewOpen);
-                }}
-                className="cursor-pointer"
-                alt="Preview"
-              />
+
+              <Eye size={13} onClick={preview} className="cursor-pointer" />
+
               <Download
                 size={13}
                 onClick={download}
                 className="cursor-pointer"
-                alt="Download"
               />
             </div>
 
@@ -331,7 +403,7 @@ export default function OfficerDashboard() {
               }}
             >
               <pre
-                className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
+                className="whitespace-pre-wrap font-sans text-sm leading-relaxed"
                 style={{ color: "#16202E" }}
               >
                 {detail.extracted_text ||
@@ -364,8 +436,10 @@ export default function OfficerDashboard() {
                     className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
                     style={{ color: "#5B6472" }}
                   >
-                    <MessageSquare size={13} /> Decision comment
+                    <MessageSquare size={13} />
+                    Decision comment
                   </label>
+
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -374,12 +448,14 @@ export default function OfficerDashboard() {
                     className="w-full rounded-md border p-3 text-sm outline-none"
                     style={{ borderColor: "#D7DCE3" }}
                   />
+
                   {decisionError && (
                     <p className="mt-1.5 text-xs" style={{ color: "#B0453D" }}>
                       {decisionError}
                     </p>
                   )}
                 </div>
+
                 <div className="flex flex-wrap gap-2">
                   <button
                     disabled={submitting}
@@ -387,23 +463,28 @@ export default function OfficerDashboard() {
                     className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                     style={{ background: "#3E7A5C" }}
                   >
-                    <CheckCircle2 size={15} /> Approve
+                    <CheckCircle2 size={15} />
+                    Approve
                   </button>
+
                   <button
                     disabled={submitting}
                     onClick={() => decide("needs_revision")}
                     className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                     style={{ background: "#1F3157" }}
                   >
-                    <RotateCcw size={15} /> Needs revision
+                    <RotateCcw size={15} />
+                    Needs revision
                   </button>
+
                   <button
                     disabled={submitting}
                     onClick={() => decide("rejected")}
                     className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                     style={{ background: "#B0453D" }}
                   >
-                    <XCircle size={15} /> Reject
+                    <XCircle size={15} />
+                    Reject
                   </button>
                 </div>
               </>
@@ -426,6 +507,7 @@ export default function OfficerDashboard() {
         style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}
       >
         <div className="mb-4 text-sm font-semibold">AI assist</div>
+
         {detail ? (
           <AssistPanel documentId={detail.id} />
         ) : (
