@@ -17,3 +17,9 @@ frontend/dist/
 
 # Vercel
 .vercel/
+
+# Tests
+**.pytest_cache/
+
+# Ruff
+**.ruff_cache/
