@@ -33,7 +33,6 @@ export default function OfficerDashboard() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [decisionError, setDecisionError] = useState("");
-  const [downloadURL, setDownloadURL] = useState("");
 
   const loadQueue = useCallback(() => {
     setLoadingQueue(true);

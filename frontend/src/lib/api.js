@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 function authHeaders() {
   const token = localStorage.getItem("token");
@@ -26,17 +26,23 @@ async function handle(res) {
   return res.json();
 }
 
-export async function listDocuments(status = '') {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-  return fetch(`${BASE}/documents${qs}`, { headers: authHeaders() }).then(handle);
+export async function listDocuments(status = "") {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return fetch(`${BASE}/documents${qs}`, { headers: authHeaders() }).then(
+    handle,
+  );
 }
 
 export async function getDocument(id) {
-  return fetch(`${BASE}/documents/${id}`, { headers: authHeaders() }).then(handle);
+  return fetch(`${BASE}/documents/${id}`, { headers: authHeaders() }).then(
+    handle,
+  );
 }
 
 export async function getAssist(id) {
-  return fetch(`${BASE}/documents/${id}/assist`, { headers: authHeaders() }).then(handle);
+  return fetch(`${BASE}/documents/${id}/assist`, {
+    headers: authHeaders(),
+  }).then(handle);
 }
 
 export async function submitDocument(file, revisesId) {
@@ -67,17 +73,19 @@ async function download(id) {
     try {
       const body = await res.json();
       if (Array.isArray(body.detail)) {
-          detail = body.detail.map((d) => d.message).join(", ");
+        detail = body.detail.map((d) => d.message).join(", ");
       } else if (body.detail) {
-          detail = body.detail;
+        detail = body.detail;
       }
-    } catch {}
+    } catch {
+      // Unhandled
+    }
 
     const err = new Error(detail);
     err.status = res.status;
     throw err;
   }
-  return res.blob()
+  return res.blob();
 }
 
 export const api = {
@@ -104,5 +112,5 @@ export const api = {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
     }).then(handle);
-  }
+  },
 };
