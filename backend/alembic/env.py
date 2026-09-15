@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import Base
-from app.models import *
+from app.models import *  # noqa: F403
 from app.config import settings
 
 # this is the Alembic Config object, which provides
