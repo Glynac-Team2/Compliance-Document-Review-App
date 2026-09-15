@@ -20,7 +20,12 @@ export function Modal({ isOpen, onClose, children }) {
       className="fixed inset-0 z-10  h-svh w-svw bg-black/50 flex items-center justify-center"
       onClick={onClose}
     >
-      <div onClick={(e) => e.stopPropagation()}>{children}</div>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] w-full mx-4 overflow-auto"
+      >
+        {children}
+      </div>
     </div>
   );
 }

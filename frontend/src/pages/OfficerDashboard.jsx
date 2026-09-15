@@ -17,6 +17,7 @@ import AssistPanel from "../components/AssistPanel";
 import { Modal } from "../components/Modal";
 import { Document, Page, pdfjs } from "react-pdf";
 import { renderAsync } from "docx-preview";
+import * as XLSX from "xlsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -92,7 +93,85 @@ function DOCXPreview({ previewURL }) {
 }
 
 function XLSXPreview({ previewURL }) {
-  return null;
+  const [sheets, setSheets] = useState([]);
+  const [activeSheet, setActiveSheet] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!previewURL) return;
+
+    const loadWorkbook = async () => {
+      try {
+        setError("");
+
+        const response = await fetch(previewURL);
+        const buffer = await response.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const parsedSheets = workbook.SheetNames.map((sheetName) => ({
+          name: sheetName,
+          data: XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+            header: 1,
+            defval: "",
+          }),
+        }));
+
+        setSheets(parsedSheets);
+        setActiveSheet(parsedSheets[0]?.name || "");
+      } catch (err) {
+        console.error("Failed to render XLSX:", err);
+        setError("Failed to load spreadsheet.");
+      }
+    };
+    loadWorkbook();
+  }, [previewURL]);
+  if (error) {
+    return <div className="p-4 text-sm text-red-500">{error}</div>;
+  }
+  const activeData =
+    sheets.find((sheet) => sheet.name === activeSheet)?.data || [];
+  return (
+    <div className="h-[80vh] flex flex-col">
+      {" "}
+      {sheets.length > 0 && (
+        <div className="flex gap-2 border-b px-3 py-2 overflow-x-auto">
+          {" "}
+          {sheets.map((sheet) => (
+            <button
+              key={sheet.name}
+              onClick={() => setActiveSheet(sheet.name)}
+              className={`px-3 py-1 text-sm rounded ${activeSheet === sheet.name ? "bg-gray-200 font-medium" : "hover:bg-gray-100"}`}
+            >
+              {" "}
+              {sheet.name}{" "}
+            </button>
+          ))}{" "}
+        </div>
+      )}{" "}
+      <div className="flex-1 overflow-auto p-4">
+        {" "}
+        <table className="border-collapse text-sm">
+          {" "}
+          <tbody>
+            {" "}
+            {activeData.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {" "}
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={cellIndex}
+                    className="border border-gray-300 px-3 py-2 whitespace-nowrap"
+                  >
+                    {" "}
+                    {cell}{" "}
+                  </td>
+                ))}{" "}
+              </tr>
+            ))}{" "}
+          </tbody>{" "}
+        </table>{" "}
+      </div>{" "}
+    </div>
+  );
 }
 
 export function FilePreview({ previewURL, contentType }) {
