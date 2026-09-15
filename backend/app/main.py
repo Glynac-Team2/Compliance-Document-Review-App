@@ -16,11 +16,18 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Compliance Document Review API")
 
+# CORS Middleware to allow requests from your Vercel frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def startup_event():
     seed_test_user()
-
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
@@ -33,23 +40,13 @@ async def validation_exception_handler(request, exc: RequestValidationError):
                     message=e["msg"],
                 )
                 for e in exc.errors()
-            ],
+            ]
         },
     )
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(reviews.router)
-
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
