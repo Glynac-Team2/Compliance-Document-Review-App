@@ -93,7 +93,7 @@ class AIAnalysis(Base):
     __tablename__ = "ai_analyses"
 
     id = Column(String, primary_key=True, default=gen_id)
-    document_id = Column(String, ForeignKey("documents.id"), nullable=False, unique=True)
+    document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, unique=True)
     summary = Column(Text, nullable=False)
     generated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -110,7 +110,7 @@ class Flag(Base):
     __tablename__ = "flags"
 
     id = Column(String, primary_key=True, default=gen_id)
-    analysis_id = Column(String, ForeignKey("ai_analyses.id"), nullable=False)
+    analysis_id = Column(String, ForeignKey("ai_analyses.id", ondelete="CASCADE"), nullable=False)
     severity = Column(String, nullable=False)  # "low" | "medium" | "high"
     passage = Column(Text, nullable=False)
     rule = Column(Text, nullable=False)
@@ -127,7 +127,7 @@ class PIIMapping(Base):
     __tablename__ = "pii_mappings"
 
     id = Column(String, primary_key=True, default=gen_id)
-    document_id = Column(String, ForeignKey("documents.id"), nullable=False, unique=True)
+    document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, unique=True)
     mapping_json = Column(Text, nullable=False)  # JSON: {"[CLIENT_1]": "Jane Doe", ...}
 
     document = relationship("Document", backref="pii_mapping", uselist=False)

@@ -25,7 +25,9 @@ export default function App() {
             path="/advisor"
             element={
               <RequireRole role="advisor">
-                <Layout><AdvisorDashboard /></Layout>
+                <Layout>
+                  <AdvisorDashboard />
+                </Layout>
               </RequireRole>
             }
           />
@@ -33,7 +35,9 @@ export default function App() {
             path="/officer"
             element={
               <RequireRole role="officer">
-                <Layout><OfficerDashboard /></Layout>
+                <Layout>
+                  <OfficerDashboard />
+                </Layout>
               </RequireRole>
             }
           />

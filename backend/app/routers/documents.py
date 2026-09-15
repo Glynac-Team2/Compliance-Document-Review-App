@@ -1,17 +1,16 @@
-from importlib.resources import contents
 import os
-import shutil
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_role
 from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
-from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut, FlagOut, PrecedentOut
-from app.ai.service import run_assist
+from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut
+from app.ai.service import run_assist, run_assist_background
+from app.ai.text_extraction import extract_file_text
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -20,35 +19,6 @@ ALLOWED_CONTENT_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
 }
-import io
-import pypdf
-from docx import Document as DocxDocument
-import openpyxl
-
-def extract_file_text(file_bytes: bytes, content_type: str, filename: str) -> str:
-    try:
-        if content_type == "application/pdf" or filename.endswith(".pdf"):
-            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-            return "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-        
-        elif content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or filename.endswith(".docx"):
-            doc = DocxDocument(io.BytesIO(file_bytes))
-            return "\n".join([para.text for para in doc.paragraphs if para.text])
-        
-        elif content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or filename.endswith(".xlsx"):
-            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-            text_acc = []
-            for sheet in wb.sheetnames:
-                ws = wb[sheet]
-                for row in ws.iter_rows(values_only=True):
-                    row_str = " ".join([str(cell) for cell in row if cell is not None])
-                    if row_str:
-                        text_acc.append(row_str)
-            return "\n".join(text_acc)
-    except Exception as e:
-        return f"[Error extracting text: {str(e)}]"
-    
-    return file_bytes.decode("utf-8", errors="ignore")
 
 
 def _log(db: Session, actor_id: str, document_id: str, action: AuditAction):
@@ -82,6 +52,7 @@ def _build_thread(db: Session, doc: Document) -> List[ThreadEntry]:
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 async def submit_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     revises_id: Optional[str] = None,
     user: User = Depends(require_role(Role.advisor)),
@@ -94,8 +65,7 @@ async def submit_document(
     size_mb = len(contents) / (1024 * 1024)
     if size_mb > settings.max_upload_mb:
         raise HTTPException(status_code=400, detail=f"File exceeds the {settings.max_upload_mb}MB limit")
-    
-    extracted_text_content = extract_file_text(contents, file.content_type, file.filename)
+
     if revises_id:
         original = db.query(Document).filter(Document.id == revises_id).first()
         if not original:
@@ -104,6 +74,10 @@ async def submit_document(
             raise HTTPException(status_code=403, detail="You can only revise your own submissions")
         if original.status != DocStatus.needs_revision:
             raise HTTPException(status_code=400, detail="Only a document marked 'needs revision' can be resubmitted")
+
+    # Extraction runs after validation above — no point extracting text
+    # from a file that's about to be rejected as an invalid revision.
+    extracted_text_content = extract_file_text(contents, file.content_type, file.filename)
 
     os.makedirs(settings.upload_dir, exist_ok=True)
     doc = Document(
@@ -127,6 +101,18 @@ async def submit_document(
     db.refresh(doc)
 
     _log(db, user.id, doc.id, AuditAction.resubmitted if revises_id else AuditAction.submitted)
+
+    # Trigger AI analysis in the background, right now at submission time,
+    # instead of waiting for whoever opens the document first to trigger
+    # (and wait through) the whole extract+mask+LLM pipeline. By the time
+    # an officer actually views it, this has very likely already finished
+    # and cached its result — get_assist() then just returns instantly.
+    # Only schedule this if AI assist is actually configured; the endpoint
+    # itself already handles the "not configured" degraded state, so
+    # there's nothing to run in the background if there's no API key.
+    if settings.llm_api_key:
+        background_tasks.add_task(run_assist_background, doc.id)
+
     return doc
 
 
@@ -168,10 +154,12 @@ def get_document(document_id: str, user: User = Depends(get_current_user), db: S
 @router.get("/{document_id}/assist", response_model=AssistOut)
 def get_assist(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Real AI-assist analysis: masked-text summary + rule-grounded flags,
-    cached per document. Returns available=False (never raises) if no
-    LLM_API_KEY is configured, or if extraction/masking/the LLM call fails
-    for any reason — the review page and decision buttons must keep
-    working regardless of what this endpoint returns.
+    cached per document. In the common case, this is already cached by
+    the time anyone calls it — see submit_document's background task.
+    Returns available=False (never raises) if no LLM_API_KEY is
+    configured, or if extraction/masking/the LLM call fails for any
+    reason — the review page and decision buttons must keep working
+    regardless of what this endpoint returns.
     """
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:

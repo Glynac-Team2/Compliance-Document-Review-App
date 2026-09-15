@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 try:
     from app.database import Base, engine, SessionLocal
     from app.models import User, Document, AuditEvent, Review
@@ -14,13 +15,15 @@ def seed_test_user():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        # Clear existing records to avoid foreign key conflicts and bad hashes.
+        # Order matters: delete child tables (rows that reference other tables)
+        # before the parent tables they point to.
         db.query(AuditEvent).delete()
         db.query(Review).delete()
         db.query(Document).delete()
         db.query(User).delete()
-        db.commit()
 
-        # 2. Add seed users
+        # Seed Advisor
         advisor = User(
             email="advisor@example.com",
             name="Test Advisor",
@@ -28,7 +31,9 @@ def seed_test_user():
             role="advisor"
         )
         db.add(advisor)
+        print("Advisor user created.")
 
+        # Seed Officer
         officer = User(
             email="officer@example.com",
             name="Test Officer",
@@ -36,8 +41,13 @@ def seed_test_user():
             role="officer"
         )
         db.add(officer)
-        
+        print("Officer user created.")
+
         db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error: {e}")
+        raise e
     finally:
         db.close()
 

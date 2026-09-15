@@ -14,3 +14,12 @@ frontend/dist/
 # general
 .DS_Store
 *.pyc
+
+# Vercel
+.vercel/
+
+# Tests
+**.pytest_cache/
+
+# Ruff
+**.ruff_cache/
