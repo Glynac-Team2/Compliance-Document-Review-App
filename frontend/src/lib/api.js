@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 function authHeaders() {
   const token = localStorage.getItem("token");
@@ -26,17 +26,23 @@ async function handle(res) {
   return res.json();
 }
 
-export async function listDocuments(status = '') {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-  return fetch(`${BASE}/documents${qs}`, { headers: authHeaders() }).then(handle);
+export async function listDocuments(status = "") {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return fetch(`${BASE}/documents${qs}`, { headers: authHeaders() }).then(
+    handle,
+  );
 }
 
 export async function getDocument(id) {
-  return fetch(`${BASE}/documents/${id}`, { headers: authHeaders() }).then(handle);
+  return fetch(`${BASE}/documents/${id}`, { headers: authHeaders() }).then(
+    handle,
+  );
 }
 
 export async function getAssist(id) {
-  return fetch(`${BASE}/documents/${id}/assist`, { headers: authHeaders() }).then(handle);
+  return fetch(`${BASE}/documents/${id}/assist`, {
+    headers: authHeaders(),
+  }).then(handle);
 }
 
 export async function submitDocument(file, revisesId) {
@@ -58,12 +64,46 @@ export async function decide(id, status, comment) {
   }).then(handle);
 }
 
+async function fetchBlob(path) {
+  const res = await fetch(path, {
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (Array.isArray(body.detail)) {
+        detail = body.detail.map((d) => d.message).join(", ");
+      } else if (body.detail) {
+        detail = body.detail;
+      }
+    } catch {
+      // Unhandled
+    }
+
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  return res.blob();
+}
+
+async function download(id) {
+  return fetchBlob(`${BASE}/documents/${id}/download`);
+}
+
+async function preview(id) {
+  return fetchBlob(`${BASE}/documents/${id}/preview`);
+}
+
 export const api = {
   listDocuments,
   getDocument,
   getAssist,
   submitDocument,
   decide,
+  download,
+  preview,
   signup: (payload) =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",
@@ -81,5 +121,5 @@ export const api = {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
     }).then(handle);
-  }
+  },
 };
