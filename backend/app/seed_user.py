@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from app.database import Base, SessionLocal, engine
+    from app.database import SessionLocal
     from app.models import AuditEvent, Document, Organization, Review, User
     from app.security import hash_password
 except ImportError:

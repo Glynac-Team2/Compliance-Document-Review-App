@@ -13,9 +13,8 @@ a path where raw PII reaches the outbound payload.
 Run with: pytest tests/test_masking_payload_proof.py -v
 """
 
-from app.models import User, Document, Role, DocStatus
 from app.ai.service import get_outbound_payload_preview
-
+from app.models import DocStatus, Document, Organization, Role, User
 
 FAKE_DOCUMENT_TEXT = """
 Dear Jane Doe,
@@ -43,13 +42,24 @@ REAL_PII_VALUES = [
 
 
 def _make_document(db_session, extracted_text: str) -> Document:
-    user = User(email="advisor@test.com", name="Test Advisor", password_hash="x", role=Role.advisor)
+    organization = Organization(name="Test Organization", domain="test.com")
+    db_session.add(organization)
+    db_session.flush()
+
+    user = User(
+        email="advisor@test.com",
+        organization_id=organization.id,
+        name="Test Advisor",
+        password_hash="x",
+        role=Role.advisor,
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
 
     doc = Document(
         advisor_id=user.id,
+        organization_id=user.organization_id,
         filename="test.docx",
         file_path="",
         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
