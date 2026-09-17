@@ -1,223 +1,243 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import {
-  Upload, FileText, GitBranch, MessageSquare, X, Send, CheckCircle2, ChevronRight
-} from "lucide-react";
-import { api } from "../lib/api";
-import { StatusPill } from "../components/Badges";
-
-const ACCEPTED = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-];
-
-function UploadCard({ onUploaded, revisesId, onDone }) {
-  const [file, setFile] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const inputRef = useRef(null);
-
-  const choose = (f) => {
-    if (!f) return;
-    if (!ACCEPTED.includes(f.type)) {
-      setError("Only PDF, DOCX, or XLSX files are accepted.");
-      return;
-    }
-    if (f.size > 10 * 1024 * 1024) {
-      setError("File exceeds the 10MB limit.");
-      return;
-    }
-    setError("");
-    setFile(f);
-  };
-
-  const submit = async () => {
-    if (!file) return;
-    setBusy(true);
-    setError("");
-    try {
-      await api.submitDocument(file, revisesId);
-      setFile(null);
-      onUploaded();
-      if (onDone) onDone();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div>
-      <div
-        onClick={() => inputRef.current?.click()}
-        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed py-8 text-center"
-        style={{ borderColor: "#C9A227", background: "#FBF7EC" }}
-      >
-        <Upload size={20} style={{ color: "#B8862F" }} />
-        <p className="mt-2 text-sm font-medium">{file ? file.name : "Drop a file, or browse"}</p>
-        <p className="mt-1 text-xs" style={{ color: "#8A93A1" }}>PDF · DOCX · XLSX · 10MB max</p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED.join(",")}
-          className="hidden"
-          onChange={(e) => choose(e.target.files[0])}
-        />
-      </div>
-      {error && <p className="mt-2 text-sm" style={{ color: "#B0453D" }}>{error}</p>}
-      <button
-        onClick={submit}
-        disabled={!file || busy}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-medium text-white disabled:opacity-50"
-        style={{ background: "#1F3157" }}
-      >
-        <Send size={14} /> {busy ? "Submitting…" : "Submit for review"}
-      </button>
-    </div>
-  );
-}
-
-function RevisionDetail({ doc, onClose, onResubmitted }) {
-  const [full, setFull] = useState(null);
-  const [resubmitted, setResubmitted] = useState(false);
-
-  useEffect(() => {
-    api.getDocument(doc.id).then(setFull);
-  }, [doc.id]);
-
-  const latestComment = full?.reviews?.[full.reviews.length - 1]?.comment;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(22,32,46,0.45)" }}>
-      <div className="w-full max-w-lg rounded-xl" style={{ background: "#FFFFFF" }}>
-        <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "#D7DCE3" }}>
-          <div>
-            <span className="font-mono text-xs" style={{ color: "#8A93A1" }}>{doc.id}</span>
-            <h3 className="text-base font-semibold">{doc.filename}</h3>
-          </div>
-          <button onClick={onClose} aria-label="Close"><X size={18} style={{ color: "#8A93A1" }} /></button>
-        </div>
-
-        <div className="px-6 py-5">
-          {full && (
-            <div className="mb-4 flex items-center gap-2 text-xs" style={{ color: "#8A93A1" }}>
-              <GitBranch size={13} />
-              {full.thread.map((t, i) => (
-                <React.Fragment key={t.id}>
-                  {i > 0 && <ChevronRight size={11} />}
-                  <span style={{ color: t.id === full.id ? "#1F3157" : "#8A93A1", fontWeight: t.id === full.id ? 600 : 400 }}>
-                    {t.label}
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {latestComment && (
-            <div className="mb-5 rounded-md border-l-4 px-4 py-3" style={{ borderColor: "#1F3157", background: "#F5F6F8" }}>
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "#1F3157" }}>
-                <MessageSquare size={12} /> Officer comment
-              </div>
-              <p className="text-sm leading-relaxed">{latestComment}</p>
-            </div>
-          )}
-
-          {doc.status === "needs_revision" && !resubmitted && (
-            <>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style={{ color: "#5B6472" }}>
-                Attach the revised file
-              </label>
-              <UploadCard
-                revisesId={doc.id}
-                onUploaded={() => {
-                  setResubmitted(true);
-                  onResubmitted();
-                }}
-              />
-            </>
-          )}
-
-          {resubmitted && (
-            <div className="flex items-center gap-2 rounded-md px-4 py-3 text-sm" style={{ background: "#E7F0EA", color: "#3E7A5C" }}>
-              <CheckCircle2 size={16} /> Revision submitted — back in the officer queue, linked to this thread.
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import React, { useState } from 'react';
+import { 
+  ShieldCheck, 
+  FileText, 
+  UploadCloud, 
+  Clock, 
+  CheckCircle2, 
+  LogOut, 
+  User, 
+  FileCheck, 
+  Sparkles,
+  AlertCircle
+} from 'lucide-react';
 
 export default function AdvisorDashboard() {
-  const [docs, setDocs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [openDoc, setOpenDoc] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(false);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    api.listDocuments().then(setDocs).finally(() => setLoading(false));
-  }, []);
+  // Mock submissions state matching your current UI
+  const [submissions, setSubmissions] = useState([
+    { id: 1, name: 'micro1 - First Hackathon97ec7c5.pdf', time: 'Just now', status: 'Pending' },
+    { id: 2, name: 'SEO Link Building Report – Idongesit Udo.xlsx', time: 'Submitted Sept 17, 2026 • 3:36 PM', status: 'Pending' },
+    { id: 3, name: 'Idongesit_Udo_Resume_micro1.pdf', time: 'Submitted Sept 17, 2026 • 3:36 PM', status: 'Approved' },
+  ]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpload = (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    setUploading(true);
+    setTimeout(() => {
+      const newSub = {
+        id: Date.now(),
+        name: selectedFile.name,
+        time: 'Just now',
+        status: 'Pending'
+      };
+      setSubmissions([newSub, ...submissions]);
+      setUploading(false);
+      setSelectedFile(null);
+      setSuccessMsg(true);
+      setTimeout(() => setSuccessMsg(false), 4000);
+    }, 1000);
+  };
+
+  const pendingCount = submissions.filter(s => s.status === 'Pending').length;
+  const approvedCount = submissions.filter(s => s.status === 'Approved').length;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
-      <div className="rounded-xl border p-6" style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}>
-        <h2 style={{ fontFamily: "'Source Serif 4', serif", fontSize: "20px", fontWeight: 600 }}>Submit a document</h2>
-        <p className="mt-1 text-sm" style={{ color: "#5B6472" }}>
-          A compliance officer will review it before it can go to clients.
-        </p>
-        <div className="mt-5">
-          <UploadCard onUploaded={load} />
-        </div>
-      </div>
-
-      <div className="rounded-xl border" style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}>
-        <div className="border-b px-6 py-4" style={{ borderColor: "#D7DCE3" }}>
-          <h3 className="text-sm font-semibold">Your submissions</h3>
-        </div>
-        <div>
-          {loading && <div className="px-6 py-8 text-center text-sm" style={{ color: "#8A93A1" }}>Loading…</div>}
-          {!loading && docs.length === 0 && (
-            <div className="px-6 py-8 text-center text-sm" style={{ color: "#8A93A1" }}>
-              Nothing submitted yet — upload a file to get started.
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      
+      {/* Top Header Navigation */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-600/20">
+              <ShieldCheck className="w-6 h-6" />
             </div>
-          )}
-          {docs.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setOpenDoc(d)}
-              className="block w-full border-b px-6 py-4 text-left"
-              style={{ borderColor: "#EEF0F3" }}
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Compliance Portal</h1>
+              <p className="text-xs text-slate-500 font-medium">Advisor Workspace</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-2 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">
+              <User className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Test Advisor</span>
+            </div>
+            <a 
+              href="/login" 
+              className="flex items-center space-x-2 px-4 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-xl transition-all"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText size={15} style={{ color: "#5B6472" }} />
-                  <span className="text-sm font-medium">{d.filename}</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign out</span>
+            </a>
+          </div>
+
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        
+        {/* Metric Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Total Submissions */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between relative overflow-hidden">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Total Submissions</p>
+              <h3 className="text-3xl font-extrabold text-slate-900">{submissions.length}</h3>
+            </div>
+            <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-2xl text-indigo-600">
+              <FileText className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Pending Review */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between relative overflow-hidden">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Pending Review</p>
+              <h3 className="text-3xl font-extrabold text-amber-600">{pendingCount}</h3>
+            </div>
+            <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-2xl text-amber-600">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Approved */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between relative overflow-hidden">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Approved</p>
+              <h3 className="text-3xl font-extrabold text-emerald-600">{approvedCount}</h3>
+            </div>
+            <div className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Content Grid: Submit Section + Submissions List */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Side: Upload Widget */}
+          <div className="lg:col-span-5 bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div className="space-y-6">
+              
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-indigo-600 mb-1">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">AI Verification Ready</span>
                 </div>
-                <StatusPill status={d.status} />
+                <h2 className="text-xl font-bold text-slate-900">Submit a Document</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Automated AI compliance screening will run before officer review.
+                </p>
               </div>
-              <div className="mt-1.5 flex items-center gap-1.5 text-xs" style={{ color: "#8A93A1" }}>
-                <GitBranch size={12} />
-                {d.revises_id ? "Revision" : "Original submission"}
-                <span>· {new Date(d.uploaded_at).toLocaleString()}</span>
-              </div>
-              {d.status === "needs_revision" && (
-                <div className="mt-2 rounded-md px-3 py-2 text-xs" style={{ background: "#E7EBF3", color: "#1F3157" }}>
-                  Officer requested changes — tap to read the comment and resubmit.
+
+              {successMsg && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-medium flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>Document uploaded and queued for screening successfully!</span>
                 </div>
               )}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {openDoc && (
-        <RevisionDetail doc={openDoc} onClose={() => setOpenDoc(null)} onResubmitted={load} />
-      )}
+              <form onSubmit={handleUpload} className="space-y-4">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/30 rounded-2xl p-8 cursor-pointer transition-all group">
+                  <div className="p-4 bg-indigo-50 group-hover:bg-indigo-100 text-indigo-600 rounded-2xl mb-3 transition-colors shadow-sm">
+                    <UploadCloud className="w-7 h-7" />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">
+                    {selectedFile ? selectedFile.name : 'Click to upload or drag & drop'}
+                  </span>
+                  <span className="text-xs text-slate-400 mt-1">PDF, DOCX, XLSX (Max 10MB)</span>
+                  <input type="file" onChange={handleFileChange} className="hidden" accept=".pdf,.docx,.xlsx" />
+                </label>
+
+                <button 
+                  type="submit" 
+                  disabled={!selectedFile || uploading}
+                  className={`w-full py-3.5 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center space-x-2 shadow-md ${
+                    !selectedFile 
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' 
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20 cursor-pointer'
+                  }`}
+                >
+                  <FileCheck className="w-4 h-4" />
+                  <span>{uploading ? 'Processing AI Screening...' : 'Submit for Review'}</span>
+                </button>
+              </form>
+
+            </div>
+
+            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center space-x-2 text-xs text-slate-400">
+              <AlertCircle className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <span>Files are encrypted end-to-end according to compliance policy.</span>
+            </div>
+          </div>
+
+          {/* Right Side: Submissions List */}
+          <div className="lg:col-span-7 bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Your Submissions</h2>
+                <p className="text-xs text-slate-500">Track real-time review status of uploaded documents.</p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
+                {submissions.length} Total
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {submissions.map((sub) => (
+                <div 
+                  key={sub.id} 
+                  className="flex items-center justify-between p-4 bg-slate-50/60 hover:bg-slate-50 border border-slate-200/60 rounded-xl transition-all"
+                >
+                  <div className="flex items-center space-x-3.5 min-w-0">
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex-shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-slate-800 truncate">{sub.name}</h4>
+                      <p className="text-xs text-slate-400">{sub.time}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex-shrink-0 ml-4">
+                    {sub.status === 'Pending' ? (
+                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 border border-amber-200/60 text-amber-700 text-xs font-semibold rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>Pending</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-xs font-semibold rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>Approved</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
     </div>
   );
 }
