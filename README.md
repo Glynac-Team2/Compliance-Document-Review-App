@@ -67,10 +67,12 @@ or self-hosting a model, production-grade PII detection.
 
 ## Team tracks
 
+## Team tracks
+
 | Track             | Status here                                                                  |
 | ----------------- | ---------------------------------------------------------------------------- |
 | Backend           | Done for the core loop — see `backend/README.md` for what's real vs. stubbed |
 | Frontend          | Done for the core loop — see `frontend/README.md`                            |
-| AI                |Masking + LLM summary/flags done, tested end-to-end with a real key (3 PRs merged) |
-| Data engineering  |pgvector models, PrecedentIndex/ComplianceCorpus tables,seeding pipeline merged |
+| AI                | Masking + LLM summary/flags done, tested end-to-end with a real key (3 PRs merged) |
+| Data engineering  | pgvector models, PrecedentIndex/ComplianceCorpus tables, active vector seeding pipeline using Google's hosted API (`text-embedding-004`) fully merged |
 | DevOps / platform | Postgres/pgvector via docker-compose, CI running tests on every push         |
