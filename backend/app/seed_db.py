@@ -25,7 +25,7 @@ def seed_data():
             
             base_rules = []
             for category, text in rule_texts:
-                embedding = _get_embedding(text)
+                embedding = get_embedding(text)
                 base_rules.append(
                     ComplianceCorpus(
                         id=gen_id(),
