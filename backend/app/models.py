@@ -35,9 +35,18 @@ class AuditAction(str, enum.Enum):
     resubmitted = "resubmitted"
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+    id = Column(String, primary_key=True, default=gen_id)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    domain = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+
+
 class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True, default=gen_id)
+    organization_id = Column(String, ForeignKey("organizations.id"), index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
