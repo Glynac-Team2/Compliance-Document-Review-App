@@ -2,7 +2,7 @@ import logging
 import subprocess
 import uuid
 from app.database import SessionLocal
-from app.ai.retrieval import _get_embedding
+from app.ai.retrieval import get_embedding
 from app.models import ComplianceCorpus, PrecedentIndex
 
 logging.basicConfig(level=logging.INFO)
