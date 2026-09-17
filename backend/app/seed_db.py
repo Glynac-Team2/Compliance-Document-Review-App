@@ -46,7 +46,7 @@ def seed_data():
         existing_precedent = db.query(PrecedentIndex).first()
         if not existing_precedent:
             sample_precedent_text = "Standard marketing communication review highlighting market risks clearly."
-            embedding = _get_embedding(sample_precedent_text)
+            embedding = get_embedding(sample_precedent_text)
             
             precedent = PrecedentIndex(
                 id=gen_id(),
