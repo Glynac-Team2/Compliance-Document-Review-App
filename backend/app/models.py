@@ -60,6 +60,7 @@ class User(Base):
 class Document(Base):
     __tablename__ = "documents"
     id = Column(String, primary_key=True, default=gen_id)
+    organization_id = Column(String, ForeignKey("organizations.id"), index=True, nullable=False)
     advisor_id = Column(String, ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
@@ -93,6 +94,7 @@ class AuditEvent(Base):
     __tablename__ = "audit_events"
     id = Column(String, primary_key=True, default=gen_id)
     actor_id = Column(String, ForeignKey("users.id"), nullable=False)
+    organization_id = Column(String, ForeignKey("organizations.id"), index=True, nullable=False)
     document_id = Column(String, ForeignKey("documents.id"), nullable=False)
     action = Column(SAEnum(AuditAction), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)

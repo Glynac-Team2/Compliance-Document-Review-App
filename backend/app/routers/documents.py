@@ -1,16 +1,17 @@
 import os
-from typing import Optional, List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.ai.service import run_assist, run_assist_background
+from app.ai.text_extraction import extract_file_text
 from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_role
-from app.models import Document, User, Role, DocStatus, AuditEvent, AuditAction
-from app.schemas import DocumentOut, DocumentDetailOut, ThreadEntry, AssistOut
-from app.ai.service import run_assist, run_assist_background
-from app.ai.text_extraction import extract_file_text
+from app.models import AuditAction, AuditEvent, DocStatus, Document, Role, User
+from app.schemas import AssistOut, DocumentDetailOut, DocumentOut, ThreadEntry
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -21,8 +22,21 @@ ALLOWED_CONTENT_TYPES = {
 }
 
 
-def _log(db: Session, actor_id: str, document_id: str, action: AuditAction):
-    db.add(AuditEvent(actor_id=actor_id, document_id=document_id, action=action))
+def _log(
+    db: Session,
+    actor_id: str,
+    organization_id: str,
+    document_id: str,
+    action: AuditAction,
+):
+    db.add(
+        AuditEvent(
+            actor_id=actor_id,
+            organization_id=organization_id,
+            document_id=document_id,
+            action=action,
+        )
+    )
     db.commit()
 
 
@@ -32,7 +46,14 @@ def _build_thread(db: Session, doc: Document) -> List[ThreadEntry]:
     chain = [doc]
     cursor = doc
     while cursor.revises_id:
-        cursor = db.query(Document).filter(Document.id == cursor.revises_id).first()
+        cursor = (
+            db.query(Document)
+            .filter(
+                Document.id == cursor.revises_id,
+                Document.organization_id == doc.organization_id,
+            )
+            .first()
+        )
         if not cursor:
             break
         chain.append(cursor)
@@ -64,16 +85,27 @@ async def submit_document(
     contents = await file.read()
     size_mb = len(contents) / (1024 * 1024)
     if size_mb > settings.max_upload_mb:
-        raise HTTPException(status_code=400, detail=f"File exceeds the {settings.max_upload_mb}MB limit")
+        raise HTTPException(
+            status_code=400, detail=f"File exceeds the {settings.max_upload_mb}MB limit"
+        )
 
     if revises_id:
-        original = db.query(Document).filter(Document.id == revises_id).first()
+        original = (
+            db.query(Document)
+            .filter(
+                Document.id == revises_id,
+                Document.organization_id == user.organization_id,
+            )
+            .first()
+        )
         if not original:
             raise HTTPException(status_code=404, detail="Document being revised was not found")
         if original.advisor_id != user.id:
             raise HTTPException(status_code=403, detail="You can only revise your own submissions")
         if original.status != DocStatus.needs_revision:
-            raise HTTPException(status_code=400, detail="Only a document marked 'needs revision' can be resubmitted")
+            raise HTTPException(
+                status_code=400, detail="Only a document marked 'needs revision' can be resubmitted"
+            )
 
     # Extraction runs after validation above — no point extracting text
     # from a file that's about to be rejected as an invalid revision.
@@ -81,6 +113,7 @@ async def submit_document(
 
     os.makedirs(settings.upload_dir, exist_ok=True)
     doc = Document(
+        organization_id=user.organization_id,
         advisor_id=user.id,
         filename=file.filename,
         file_path="",  # set below once we have the id
@@ -100,7 +133,13 @@ async def submit_document(
     db.commit()
     db.refresh(doc)
 
-    _log(db, user.id, doc.id, AuditAction.resubmitted if revises_id else AuditAction.submitted)
+    _log(
+        db,
+        user.id,
+        user.organization_id,
+        doc.id,
+        AuditAction.resubmitted if revises_id else AuditAction.submitted,
+    )
 
     # Trigger AI analysis in the background, right now at submission time,
     # instead of waiting for whoever opens the document first to trigger
@@ -122,7 +161,7 @@ def list_documents(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Document)
+    query = db.query(Document).filter(Document.organization_id == user.organization_id)
     if user.role == Role.advisor:
         # An advisor only ever sees their own submissions — enforced here,
         # not left to the frontend to filter client-side.
@@ -137,22 +176,84 @@ def list_documents(
 
 
 @router.get("/{document_id}", response_model=DocumentDetailOut)
-def get_document(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == document_id).first()
+def get_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = (
+        db.query(Document)
+        .filter(Document.organization_id == user.organization_id, Document.id == document_id)
+        .first()
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     if user.role == Role.advisor and doc.advisor_id != user.id:
         raise HTTPException(status_code=403, detail="You can only view your own submissions")
 
-    _log(db, user.id, doc.id, AuditAction.viewed)
+    _log(db, user.id, user.organization_id, doc.id, AuditAction.viewed)
     thread = _build_thread(db, doc)
     out = DocumentDetailOut.model_validate(doc)
     out.thread = thread
     return out
 
 
+@router.get("/{document_id}/download")
+def download_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = (
+        db.query(Document)
+        .filter(Document.organization_id == user.organization_id, Document.id == document_id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if user.role not in [Role.advisor, Role.officer] and doc.advisor_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are forbidden from accessing/performing any actions to this resource",
+        )
+
+    return FileResponse(
+        path=doc.file_path,
+        media_type=doc.content_type,
+        filename=doc.filename,
+        headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'},
+    )
+
+
+@router.get("/{document_id}/preview")
+def preview_document(
+    document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    doc = (
+        db.query(Document)
+        .filter(Document.organization_id == user.organization_id, Document.id == document_id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if user.role not in [Role.advisor, Role.officer] and doc.advisor_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are forbidden from accessing/performing any actions to this resource",
+        )
+
+    return FileResponse(
+        path=doc.file_path,
+        media_type=doc.content_type,
+        filename=doc.filename,
+        headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
+    )
+
+
 @router.get("/{document_id}/assist", response_model=AssistOut)
-def get_assist(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_assist(
+    document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """Real AI-assist analysis: masked-text summary + rule-grounded flags,
     cached per document. In the common case, this is already cached by
     the time anyone calls it — see submit_document's background task.
@@ -161,7 +262,11 @@ def get_assist(document_id: str, user: User = Depends(get_current_user), db: Ses
     reason — the review page and decision buttons must keep working
     regardless of what this endpoint returns.
     """
-    doc = db.query(Document).filter(Document.id == document_id).first()
+    doc = (
+        db.query(Document)
+        .filter(Document.organization_id == user.organization_id, Document.id == document_id)
+        .first()
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
