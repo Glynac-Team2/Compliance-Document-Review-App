@@ -101,6 +101,7 @@ class AIAnalysis(Base):
     flags = relationship("Flag", back_populates="analysis", cascade="all, delete-orphan")
 
     __table_args__ = (UniqueConstraint("document_id", name="uq_ai_analysis_document"),)
+    document_category = Column(String, nullable=True)
 
 
 class Flag(Base):

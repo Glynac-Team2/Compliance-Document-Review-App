@@ -8,6 +8,7 @@ no real network call, no real API key needed, runs safely in CI.
 Run with: pytest tests/test_service.py -v
 """
 
+import pytest
 from unittest.mock import patch
 from sqlalchemy.orm import sessionmaker
 
@@ -68,6 +69,7 @@ class TestCacheMissSuccess:
         doc = _make_document(db_session, user, "The client has a guaranteed 12% return.")
 
         fake_result = LLMAssistResult(
+            document_category="financial",
             summary="A document about guaranteed returns.",
             flags=[{"severity": "high", "passage": "guaranteed 12% return", "rule_id": "R-TEST-01", "reason": "Guarantees a return."}],
         )
@@ -95,7 +97,7 @@ class TestCacheMissSuccess:
         doc.extracted_text = "Dear John Doe, please reach me at jane@example.com."
         db_session.commit()
 
-        fake_result = LLMAssistResult(summary="ok", flags=[])
+        fake_result = LLMAssistResult(document_category="financial", summary="ok", flags=[])
         with patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm, \
              patch("app.ai.service.retrieve_relevant_rules", return_value=[]):
             run_assist(doc, db_session)
@@ -114,6 +116,7 @@ class TestCacheMissSuccess:
         doc = _make_document(db_session, user, "Some text.")
 
         fake_result = LLMAssistResult(
+            document_category="financial",
             summary="ok",
             flags=[{"severity": "medium", "passage": "p", "rule_id": "MADE-UP-RULE", "reason": "r"}],
         )
@@ -159,7 +162,7 @@ class TestRaceCondition:
         user = _make_user(db_session)
         doc = _make_document(db_session, user, "Some document text.")
 
-        fake_result = LLMAssistResult(summary="This session's result.", flags=[])
+        fake_result = LLMAssistResult(document_category="financial", summary="This session's result.", flags=[])
 
         real_commit = db_session.commit
         call_count = {"n": 0}

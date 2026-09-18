@@ -53,12 +53,18 @@ RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
+        "document_category": {
+            "type": "string",
+            "enum": ["financial", "non-financial", "other"],
+            "description": "Classify the document first. 'financial' = client-facing financial/advisory material (marketing, proposals, meeting notes about investments, disclosures, etc.) that compliance rules actually apply to. 'non-financial' = clearly unrelated content (HR policy, internal memo, personal note, etc.). 'other' = ambiguous or you're not confident either way.",
+        },
         "summary": {
             "type": "string",
-            "description": "A short (2-4 sentence) neutral summary of what this document is and does.",
+            "description": "A short (2-4 sentence) neutral summary of what this document is and does. If document_category is not 'financial', briefly explain why (e.g. what kind of document it actually appears to be) instead of describing compliance content.",
         },
         "flags": {
             "type": "array",
+            "description": "Compliance flags. MUST be an empty array if document_category is not 'financial' — do not flag rule conflicts in non-financial material.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -80,7 +86,7 @@ _RESPONSE_SCHEMA = {
             },
         },
     },
-    "required": ["summary", "flags"],
+    "required": ["document_category", "summary", "flags"],
 }
 
 
@@ -94,6 +100,7 @@ class LLMError(Exception):
 
 @dataclass
 class LLMAssistResult:
+    document_category: str  # "financial" | "non-financial" | "other"
     summary: str
     flags: List[dict]  # each: severity, passage, rule_id, reason
 
@@ -173,7 +180,11 @@ def generate_assist(
     except _json.JSONDecodeError as e:
         raise LLMError(f"LLM response was not valid JSON despite response_schema: {e}") from e
 
-    if "summary" not in parsed or "flags" not in parsed:
+    if "document_category" not in parsed or "summary" not in parsed or "flags" not in parsed:
         raise LLMError(f"LLM response missing required fields: {list(parsed.keys())}")
 
-    return LLMAssistResult(summary=parsed["summary"], flags=parsed["flags"])
+    return LLMAssistResult(
+        document_category=parsed["document_category"],
+        summary=parsed["summary"],
+        flags=parsed["flags"],
+    )

@@ -108,3 +108,4 @@ class AssistOut(BaseModel):
     flags: list[FlagOut] = []
     precedents: list[PrecedentOut] = []
     error: str | None = None
+    document_category: str | None = None

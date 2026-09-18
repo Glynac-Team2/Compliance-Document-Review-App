@@ -1,15 +1,15 @@
 """
 app/ai/prompt.py
 
-Builds the prompt sent to the LLM. Two hard rules from the spec baked in
+Builds the prompt sent to the LLM. Key rules from the spec baked in
 directly:
-  1. The model only ever sees masked text — this function must never be
-     called with anything but already-masked text. It doesn't re-check
-     that (masking happens earlier, in the router), but the parameter is
-     named accordingly as a reminder.
+  1. The model only ever sees masked text.
   2. The model does not decide anything — it flags candidate issues for
-     a human officer to weigh; the prompt says so explicitly, and
-     get_assist() never writes a Review off the back of this response.
+     a human officer to weigh; the prompt says so explicitly.
+  3. The model must first classify whether the document is actually
+     financial/advisory client-facing material at all, and skip flagging
+     entirely if not (added per team request to avoid nonsense flags on
+     unrelated documents like HR policies or internal memos).
 """
 
 from __future__ import annotations
@@ -22,12 +22,23 @@ SYSTEM_PREAMBLE = """You are assisting a human compliance officer at a financial
 advisory firm who is reviewing client-facing material (marketing emails, \
 brochures, social posts, meeting notes, proposal letters) before it goes out.
 
-Your job is ONLY to summarize the document and point out passages that may \
-conflict with the compliance rules provided to you. You do not approve, \
-reject, or decide anything — a human officer makes that call. Never phrase \
-output as a decision or recommendation to approve/reject.
+FIRST, classify the document itself:
+- "financial": client-facing financial/advisory material that compliance rules \
+about investments, returns, risk disclosures, fees, etc. actually apply to.
+- "non-financial": clearly unrelated content — an HR policy, an internal memo \
+about something else, a personal note, an unrelated business document, etc.
+- "other": you're genuinely unsure, or it's ambiguous.
+
+Your job is to summarize the document and, ONLY IF it is classified "financial", \
+point out passages that may conflict with the compliance rules provided to you. \
+You do not approve, reject, or decide anything — a human officer makes that call. \
+Never phrase output as a decision or recommendation to approve/reject.
 
 Rules for flags:
+- If document_category is NOT "financial", flags MUST be an empty list — do not \
+flag anything in non-financial or ambiguous material, even if something looks \
+superficially similar to a rule. Briefly explain in the summary what kind of \
+document it actually appears to be instead.
 - Only flag a passage if it conflicts with one of the rules listed below. \
 Do not invent rules or cite a rule_id that isn't in the list.
 - Every flag must quote the exact passage from the document that triggered it.
@@ -35,11 +46,11 @@ Do not invent rules or cite a rule_id that isn't in the list.
 - If no rules are provided, or the document raises no issues against the \
 provided rules, return an empty flags list — do not flag stylistic or \
 subjective concerns unrelated to the provided rules.
-- The document text below has already had personal information replaced \
-with placeholders like [CLIENT_1], [ACCOUNT_1], [EMAIL_1]. Treat these as \
-opaque references to a real person/account — do not comment on the masking \
-itself, and feel free to reference placeholders in your passage quotes and \
-reasons exactly as they appear."""
+- The document text below has already had personal information replaced with \
+placeholders like [CLIENT_1], [ACCOUNT_1], [EMAIL_1]. Treat these as opaque \
+references to a real person/account — do not comment on the masking itself, \
+and feel free to reference placeholders in your passage quotes and reasons \
+exactly as they appear."""
 
 
 def build_prompt(masked_text: str, rules: List[RetrievedRule]) -> str:
@@ -52,5 +63,5 @@ def build_prompt(masked_text: str, rules: List[RetrievedRule]) -> str:
         f"{SYSTEM_PREAMBLE}\n\n"
         f"--- COMPLIANCE RULES ---\n{rules_block}\n\n"
         f"--- DOCUMENT TEXT (masked) ---\n{masked_text}\n\n"
-        f"Respond with the summary and flags as instructed."
+        f"Respond with document_category, summary, and flags as instructed."
     )
