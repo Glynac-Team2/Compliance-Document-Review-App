@@ -1,10 +1,16 @@
+import enum
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.models import DocStatus, Role, SignupRole
+from app.models import DocStatus, Role
 
 # ---- Auth ----
+
+
+class SignupRole(str, enum.Enum):
+    advisor = "advisor"
+    officer = "officer"
 
 
 class SignupIn(BaseModel):
@@ -37,6 +43,20 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    password: str | None = Field(default=None, min_length=8)
+    role: Role | None = None
+
+    @field_validator("name", "email", "password", "role")
+    @classmethod
+    def no_explicit_null(cls, v):
+        if v is None:
+            raise ValueError("cannot be null; omit the field to leave it unchanged")
+        return v
 
 
 # ---- Reviews ----

@@ -4,7 +4,7 @@ from getpass import getpass
 from pydantic import EmailStr, TypeAdapter, ValidationError
 
 from app.database import SessionLocal
-from app.models import Role, User
+from app.models import Organization, Role, User
 from app.security import hash_password
 
 _email_adapter = TypeAdapter(EmailStr)
@@ -71,7 +71,19 @@ def main():
         password = get_or_retry("Password", getpass, validate=min_length(8))
         get_or_retry("Confirm Password", getpass, validate=passwords_matching(password))
 
-        db.add(User(name=name, email=email, password_hash=hash_password(password), role=Role.admin))
+        organization = Organization(domain=email.split("@")[-1], name=f"{name}'s Organization")
+        db.add(organization)
+        db.flush()
+
+        db.add(
+            User(
+                name=name,
+                organization_id=organization.id,
+                email=email,
+                password_hash=hash_password(password),
+                role=Role.admin,
+            )
+        )
         db.commit()
 
         print(f"Successfully created admin: {name} <{email}>")

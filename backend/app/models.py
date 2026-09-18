@@ -22,11 +22,6 @@ class Role(str, enum.Enum):
     admin = "admin"
 
 
-class SignupRole(str, enum.Enum):
-    advisor = "advisor"
-    officer = "officer"
-
-
 class DocStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"
