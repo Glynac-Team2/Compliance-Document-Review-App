@@ -8,7 +8,6 @@ cached paths.
 Run with: pytest tests/test_document_classification.py -v
 """
 
-import pytest
 from unittest.mock import patch
 
 from app.models import AIAnalysis
