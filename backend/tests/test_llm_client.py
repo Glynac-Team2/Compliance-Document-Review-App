@@ -14,7 +14,7 @@ import app.ai.llm_client as llm_client_module
 
 
 SUCCESS_BODY = {
-    "candidates": [{"content": {"parts": [{"text": '{"summary": "ok", "flags": []}'}]}}]
+    "candidates": [{"content": {"parts": [{"text": '{"document_category": "financial", "summary": "ok", "flags": []}'}]}}]
 }
 
 

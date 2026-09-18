@@ -68,10 +68,21 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
         return AssistOut(available=False, error="AI analysis is temporarily unavailable. Please try again later.")
 
     # ---- 3. Map rule_id -> rule text, unmask for officer display ----
+    # Same principle as masking: don't rely on the prompt instruction
+    # alone. If the model returns flags for a non-financial document
+    # despite being told not to, drop them here — server-side
+    # enforcement, not just a hope the instruction was followed.
+    model_flags = result.flags if result.document_category == "financial" else []
+    if result.flags and result.document_category != "financial":
+        logger.warning(
+            "assist: model returned %d flag(s) for a %r-classified document %s — dropping",
+            len(result.flags), result.document_category, doc_id,
+        )
+
     rules_by_id = {r.rule_id: r.rule_text for r in rules}
     flags_out: list[FlagOut] = []
     flag_rows: list[FlagModel] = []
-    for raw_flag in result.flags:
+    for raw_flag in model_flags:
         rule_id = raw_flag.get("rule_id", "")
         rule_text = rules_by_id.get(rule_id)
         if rule_text is None:
@@ -86,10 +97,11 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
         flag_rows.append(FlagModel(severity=severity, passage=passage, rule=rule_text, reason=reason))
 
     summary = _masker.unmask(result.summary, mapping)
+    document_category = result.document_category
 
     # ---- 4. Persist (cache for next time) ----
     try:
-        analysis = AIAnalysis(document_id=doc_id, summary=summary)
+        analysis = AIAnalysis(document_id=doc_id, summary=summary, document_category=document_category)
         analysis.flags = flag_rows
         db.add(analysis)
         db.add(PIIMappingModel.store(doc_id, mapping.to_dict()))
@@ -105,7 +117,10 @@ def run_assist(doc: Document, db: Session) -> AssistOut:
         logger.exception("assist: failed to persist analysis for %s (returning result anyway)", doc_id)
 
     precedents = _get_precedents(masked_text, db)
-    return AssistOut(available=True, summary=summary, flags=flags_out, precedents=precedents)
+    return AssistOut(
+        available=True, summary=summary, flags=flags_out, precedents=precedents,
+        document_category=document_category,
+    )
 
 
 def run_assist_background(document_id: str) -> None:
@@ -148,7 +163,10 @@ def _to_assist_out(cached: AIAnalysis, db: Session, doc: Document) -> AssistOut:
     # description (this app never stores unmasked passages standalone;
     # the summary is the LLM's own paraphrase, not raw client text).
     precedents = _get_precedents(cached.summary, db)
-    return AssistOut(available=True, summary=cached.summary, flags=flags, precedents=precedents)
+    return AssistOut(
+        available=True, summary=cached.summary, flags=flags, precedents=precedents,
+        document_category=cached.document_category,
+    )
 
 
 def _get_precedents(masked_text: str, db: Session) -> list[PrecedentOut]:
