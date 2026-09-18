@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.models import DocStatus, Role
+from app.models import DocStatus, Role, SignupRole
 
 # ---- Auth ----
 
@@ -11,7 +11,7 @@ class SignupIn(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1)
     password: str = Field(min_length=8)
-    role: Role
+    role: SignupRole
 
 
 class LoginIn(BaseModel):
