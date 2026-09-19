@@ -18,6 +18,7 @@ SessionTest = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 @pytest.fixture
 def db_session():
+    Base.metadata.create_all(bind=test_engine)
     db = SessionTest()
     try:
         yield db
