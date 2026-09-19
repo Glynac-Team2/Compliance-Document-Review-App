@@ -9,19 +9,28 @@ Run with: pytest tests/test_service.py -v
 """
 
 from unittest.mock import patch
+
 from sqlalchemy.orm import sessionmaker
 
-from app.models import User, Document, Role, DocStatus, AIAnalysis, Flag
-from app.ai.service import run_assist
 from app.ai.llm_client import LLMAssistResult, LLMError
 from app.ai.retrieval import RetrievedRule
-
+from app.ai.service import run_assist
+from app.models import AIAnalysis, DocStatus, Document, Flag, Organization, Role, User
 
 FAKE_RULES = [RetrievedRule("R-TEST-01", "Must not guarantee a specific return.", 0.0)]
 
 
 def _make_user(db_session) -> User:
-    user = User(email="advisor@test.com", name="Test Advisor", password_hash="x", role=Role.advisor)
+    organization = Organization(name="Test Organization", domain="test.com")
+    db_session.add(organization)
+    db_session.flush()
+    user = User(
+        email="advisor@test.com",
+        organization_id=organization.id,
+        name="Test Advisor",
+        password_hash="x",
+        role=Role.advisor,
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -31,6 +40,7 @@ def _make_user(db_session) -> User:
 def _make_document(db_session, user: User, extracted_text: str) -> Document:
     doc = Document(
         advisor_id=user.id,
+        organization_id=user.organization_id,
         filename="test.docx",
         file_path="",
         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -70,10 +80,19 @@ class TestCacheMissSuccess:
         fake_result = LLMAssistResult(
             document_category="financial",
             summary="A document about guaranteed returns.",
-            flags=[{"severity": "high", "passage": "guaranteed 12% return", "rule_id": "R-TEST-01", "reason": "Guarantees a return."}],
+            flags=[
+                {
+                    "severity": "high",
+                    "passage": "guaranteed 12% return",
+                    "rule_id": "R-TEST-01",
+                    "reason": "Guarantees a return.",
+                }
+            ],
         )
-        with patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm, \
-             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
+        with (
+            patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm,
+            patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES),
+        ):
             result = run_assist(doc, db_session)
 
         assert result.available is True
@@ -91,14 +110,18 @@ class TestCacheMissSuccess:
         """The core guarantee: the LLM never sees raw PII, and the
         officer-facing response has it unmasked back."""
         user = _make_user(db_session)
-        doc = _make_document(db_session, user, "Contact John Doe at Dear John Doe, jane@example.com about this.")
+        doc = _make_document(
+            db_session, user, "Contact John Doe at Dear John Doe, jane@example.com about this."
+        )
         # Simpler, unambiguous PII per the masking spec's trigger rules:
         doc.extracted_text = "Dear John Doe, please reach me at jane@example.com."
         db_session.commit()
 
         fake_result = LLMAssistResult(document_category="financial", summary="ok", flags=[])
-        with patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm, \
-             patch("app.ai.service.retrieve_relevant_rules", return_value=[]):
+        with (
+            patch("app.ai.service.generate_assist", return_value=fake_result) as mock_llm,
+            patch("app.ai.service.retrieve_relevant_rules", return_value=[]),
+        ):
             run_assist(doc, db_session)
 
         sent_prompt = mock_llm.call_args[0][0]  # first positional arg to generate_assist
@@ -117,10 +140,14 @@ class TestCacheMissSuccess:
         fake_result = LLMAssistResult(
             document_category="financial",
             summary="ok",
-            flags=[{"severity": "medium", "passage": "p", "rule_id": "MADE-UP-RULE", "reason": "r"}],
+            flags=[
+                {"severity": "medium", "passage": "p", "rule_id": "MADE-UP-RULE", "reason": "r"}
+            ],
         )
-        with patch("app.ai.service.generate_assist", return_value=fake_result), \
-             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
+        with (
+            patch("app.ai.service.generate_assist", return_value=fake_result),
+            patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES),
+        ):
             result = run_assist(doc, db_session)
 
         assert result.available is True
@@ -132,8 +159,10 @@ class TestDegradedStates:
         user = _make_user(db_session)
         doc = _make_document(db_session, user, "Some document text.")
 
-        with patch("app.ai.service.generate_assist", side_effect=LLMError("simulated failure")), \
-             patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES):
+        with (
+            patch("app.ai.service.generate_assist", side_effect=LLMError("simulated failure")),
+            patch("app.ai.service.retrieve_relevant_rules", return_value=FAKE_RULES),
+        ):
             result = run_assist(doc, db_session)
 
         assert result.available is False
@@ -161,7 +190,9 @@ class TestRaceCondition:
         user = _make_user(db_session)
         doc = _make_document(db_session, user, "Some document text.")
 
-        fake_result = LLMAssistResult(document_category="financial", summary="This session's result.", flags=[])
+        fake_result = LLMAssistResult(
+            document_category="financial", summary="This session's result.", flags=[]
+        )
 
         real_commit = db_session.commit
         call_count = {"n": 0}
@@ -179,12 +210,15 @@ class TestRaceCondition:
                 other.close()
 
                 from sqlalchemy.exc import IntegrityError
+
                 raise IntegrityError("insert", {}, Exception("duplicate key"))
             return real_commit()
 
-        with patch("app.ai.service.generate_assist", return_value=fake_result), \
-             patch("app.ai.service.retrieve_relevant_rules", return_value=[]), \
-             patch.object(db_session, "commit", side_effect=commit_that_loses_the_race):
+        with (
+            patch("app.ai.service.generate_assist", return_value=fake_result),
+            patch("app.ai.service.retrieve_relevant_rules", return_value=[]),
+            patch.object(db_session, "commit", side_effect=commit_that_loses_the_race),
+        ):
             result = run_assist(doc, db_session)
 
         # Must not crash, must return SOME valid result — specifically
