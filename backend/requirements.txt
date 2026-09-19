@@ -17,3 +17,4 @@ python-docx==1.1.2
 openpyxl==3.1.5
 pgvector>=0.2.0
 ruff==0.16.7
+alembic==1.20.0
