@@ -1,18 +1,19 @@
-import sys
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from app.database import Base, engine, SessionLocal
-    from app.models import User, Document, AuditEvent, Review
+    from app.database import SessionLocal
+    from app.models import AuditEvent, Document, Review, User
     from app.security import hash_password
 except ImportError:
-    from database import Base, engine, SessionLocal
-    from models import User, Document, AuditEvent, Review
+    from database import SessionLocal
+    from models import AuditEvent, Document, Review, User
     from security import hash_password
 
+
 def seed_test_user():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         # Clear existing records to avoid foreign key conflicts and bad hashes.
@@ -28,7 +29,7 @@ def seed_test_user():
             email="advisor@example.com",
             name="Test Advisor",
             password_hash=hash_password("password123"),
-            role="advisor"
+            role="advisor",
         )
         db.add(advisor)
         print("Advisor user created.")
@@ -38,7 +39,7 @@ def seed_test_user():
             email="officer@example.com",
             name="Test Officer",
             password_hash=hash_password("password123"),
-            role="officer"
+            role="officer",
         )
         db.add(officer)
         print("Officer user created.")
@@ -50,6 +51,7 @@ def seed_test_user():
         raise e
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     seed_test_user()
