@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from app.constants import CONSUMER_DOMAINS
 from app.database import get_db
@@ -68,6 +68,16 @@ def login(
             detail=[
                 error_detail(
                     message="Incorrect email or password",
+                )
+            ],
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail=[
+                error_detail(
+                    message="Your account is deactivated",
                 )
             ],
         )
