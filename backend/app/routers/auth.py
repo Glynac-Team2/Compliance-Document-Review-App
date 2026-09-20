@@ -3,9 +3,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 
+from app.constants import CONSUMER_DOMAINS
 from app.database import get_db
 from app.errors import error_detail
-from app.models import User
+from app.models import Organization, User
 from app.schemas import SignupIn, TokenOut
 from app.security import create_access_token, hash_password, verify_password
 
@@ -29,7 +30,19 @@ def signup(
             ],
         )
 
+    domain = email.split("@")[-1]
+    if domain in CONSUMER_DOMAINS:
+        organization = Organization(domain=domain, name=f"{payload.name}'s Organization")
+    else:
+        organization = db.query(Organization).filter(Organization.domain == domain).first()
+        if not organization:
+            organization = Organization(domain=domain, name=domain.split(".")[0].capitalize())
+
+    db.add(organization)
+    db.flush()
+
     user = User(
+        organization_id=organization.id,
         email=email,
         name=payload.name,
         password_hash=hash_password(payload.password),
