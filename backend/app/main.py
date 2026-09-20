@@ -8,7 +8,7 @@ from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_503_SERVICE_UNA
 
 from app.database import get_db
 from app.errors import error_detail
-from app.routers import auth, documents, reviews
+from app.routers import admin, auth, documents, reviews
 from app.seed_user import seed_test_user
 
 app = FastAPI(title="Compliance Document Review API")
@@ -47,6 +47,8 @@ async def validation_exception_handler(request, exc: RequestValidationError):
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(reviews.router)
+app.include_router(admin.router)
+
 
 
 @app.get("/health")

@@ -19,6 +19,7 @@ def gen_id() -> str:
 class Role(str, enum.Enum):
     advisor = "advisor"
     officer = "officer"
+    admin = "admin"
 
 
 class DocStatus(str, enum.Enum):
