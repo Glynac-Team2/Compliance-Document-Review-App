@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import EmailStr
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 
 from app.database import get_db
 from app.deps import require_role
@@ -47,9 +47,21 @@ async def get_user(
 async def update_user(
     user_id: str,
     payload: UserUpdate,
-    _: User = Depends(require_role(Role.admin)),
+    current_user: User = Depends(require_role(Role.admin)),
     db: Session = Depends(get_db),
 ):
+    if current_user.id == user_id and payload.is_active is False:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=[error_detail(message="You cannot deactivate yourself")],
+        )
+
+    if current_user.id == user_id and payload.role not in [None, Role.admin]:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=[error_detail(message="You cannot change your own role")],
+        )
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
