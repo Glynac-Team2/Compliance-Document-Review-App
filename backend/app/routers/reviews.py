@@ -38,11 +38,7 @@ def record_decision(
     ):
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
-            detail=[
-                error_detail(
-                    message="Decision must be approved, rejected, or needs_revision"
-                )
-            ],
+            detail=[error_detail(message="Decision must be approved, rejected, or needs_revision")],
         )
 
     review = Review(
@@ -58,6 +54,7 @@ def record_decision(
     db.add(
         AuditEvent(
             actor_id=officer.id,
+            organization_id=doc.organization_id,
             document_id=doc.id,
             action=AuditAction.decided,
         )

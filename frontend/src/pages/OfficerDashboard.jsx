@@ -131,45 +131,37 @@ function XLSXPreview({ previewURL }) {
     sheets.find((sheet) => sheet.name === activeSheet)?.data || [];
   return (
     <div className="h-[80vh] flex flex-col">
-      {" "}
       {sheets.length > 0 && (
         <div className="flex gap-2 border-b px-3 py-2 overflow-x-auto">
-          {" "}
           {sheets.map((sheet) => (
             <button
               key={sheet.name}
               onClick={() => setActiveSheet(sheet.name)}
               className={`px-3 py-1 text-sm rounded ${activeSheet === sheet.name ? "bg-gray-200 font-medium" : "hover:bg-gray-100"}`}
             >
-              {" "}
-              {sheet.name}{" "}
+              {sheet.name}
             </button>
-          ))}{" "}
+          ))}
         </div>
-      )}{" "}
+      )}
       <div className="flex-1 overflow-auto p-4">
-        {" "}
         <table className="border-collapse text-sm">
-          {" "}
           <tbody>
-            {" "}
             {activeData.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                {" "}
                 {row.map((cell, cellIndex) => (
                   <td
                     key={cellIndex}
                     className="border border-gray-300 px-3 py-2 whitespace-nowrap"
                   >
-                    {" "}
-                    {cell}{" "}
+                    {cell}
                   </td>
-                ))}{" "}
+                ))}
               </tr>
-            ))}{" "}
-          </tbody>{" "}
-        </table>{" "}
-      </div>{" "}
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -456,7 +448,7 @@ export default function OfficerDashboard() {
               style={{ color: "#5B6472" }}
             >
               <span>{detail.advisor.name}</span>
-              <span>.</span>
+              <span>·</span>
 
               <span className="flex items-center gap-1">
                 <Clock size={13} />

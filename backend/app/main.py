@@ -6,13 +6,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_503_SERVICE_UNAVAILABLE
 
-from app.database import Base, engine, get_db
+from app.database import get_db
 from app.errors import error_detail
-from app.routers import auth, documents, reviews
+from app.routers import admin, auth, documents, reviews
 from app.seed_user import seed_test_user
-
-# For a real migration story swap this for Alembic; fine for local dev.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Compliance Document Review API")
 
@@ -25,9 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.on_event("startup")
 def startup_event():
     seed_test_user()
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
@@ -45,6 +44,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
     )
 
 
+<<<<<<< HEAD
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # Vite dev server
@@ -53,9 +53,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+=======
+>>>>>>> f50204938a048a9cc793b8f3109b81715c98ec32
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(reviews.router)
+app.include_router(admin.router)
+
+
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):

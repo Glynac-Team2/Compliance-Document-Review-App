@@ -9,6 +9,11 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+<<<<<<< HEAD
+=======
+import pgvector.sqlalchemy
+
+>>>>>>> f50204938a048a9cc793b8f3109b81715c98ec32
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
