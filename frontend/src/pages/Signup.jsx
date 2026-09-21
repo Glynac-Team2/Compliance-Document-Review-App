@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ShieldCheck,
   Lock,
@@ -11,7 +11,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../lib/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { ROLE_HOME } from "../lib/roles";
 
 export default function Signup() {

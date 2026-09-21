@@ -3,7 +3,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AdvisorDashboard from "./pages/AdvisorDashboard";
 import OfficerDashboard from "./pages/OfficerDashboard";
-import { AuthProvider } from "./lib/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import RequireRole from "./components/RequireRole";
 
 export default function App() {

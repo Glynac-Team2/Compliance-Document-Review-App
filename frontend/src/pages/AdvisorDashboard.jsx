@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShieldCheck,
   FileText,
@@ -11,37 +11,50 @@ import {
   Sparkles,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "../lib/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
+import { api } from "../lib/api";
+import { formatDate } from "../lib/format";
+import { StatusPill } from "../components/Badges";
 import { useNavigate } from "react-router-dom";
 
 export default function AdvisorDashboard() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
 
-  // Mock submissions state matching your current UI
-  const [submissions, setSubmissions] = useState([
-    {
-      id: 1,
-      name: "micro1 - First Hackathon97ec7c5.pdf",
-      time: "Just now",
-      status: "Pending",
-    },
-    {
-      id: 2,
-      name: "SEO Link Building Report – Idongesit Udo.xlsx",
-      time: "Submitted Sept 17, 2026 • 3:36 PM",
-      status: "Pending",
-    },
-    {
-      id: 3,
-      name: "Idongesit_Udo_Resume_micro1.pdf",
-      time: "Submitted Sept 17, 2026 • 3:36 PM",
-      status: "Approved",
-    },
-  ]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        const data = await api.listDocuments();
+        if (cancelled) return;
+        setSubmissions(
+          [...data].sort(
+            (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
+          ),
+        );
+        setError("");
+      } catch (err) {
+        if (cancelled) return;
+        setError(err.message || "Failed to load documents.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -54,29 +67,28 @@ export default function AdvisorDashboard() {
     }
   };
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
 
     setUploading(true);
-    setTimeout(() => {
-      const newSub = {
-        id: Date.now(),
-        name: selectedFile.name,
-        time: "Just now",
-        status: "Pending",
-      };
-      setSubmissions([newSub, ...submissions]);
-      setUploading(false);
+    setUploadError("");
+    try {
+      const doc = await api.submitDocument(selectedFile);
+      setSubmissions((prev) => [doc, ...prev]);
       setSelectedFile(null);
       setSuccessMsg(true);
       setTimeout(() => setSuccessMsg(false), 4000);
-    }, 1000);
+    } catch (err) {
+      setUploadError(err.message || "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const pendingCount = submissions.filter((s) => s.status === "Pending").length;
+  const pendingCount = submissions.filter((s) => s.status === "pending").length;
   const approvedCount = submissions.filter(
-    (s) => s.status === "Approved",
+    (s) => s.status === "approved",
   ).length;
 
   return (
@@ -101,7 +113,7 @@ export default function AdvisorDashboard() {
           <div className="flex items-center space-x-4">
             <div className="hidden sm:flex items-center space-x-2 px-3.5 py-2 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">
               <User className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Test Advisor</span>
+              <span>{user.name}</span>
             </div>
             <button
               onClick={handleLogout}
@@ -194,6 +206,12 @@ export default function AdvisorDashboard() {
                 </div>
               )}
 
+              {uploadError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
+                  {uploadError}
+                </div>
+              )}
+
               <form onSubmit={handleUpload} className="space-y-4">
                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/30 rounded-2xl p-8 cursor-pointer transition-all group">
                   <div className="p-4 bg-indigo-50 group-hover:bg-indigo-100 text-indigo-600 rounded-2xl mb-3 transition-colors shadow-sm">
@@ -259,38 +277,43 @@ export default function AdvisorDashboard() {
             </div>
 
             <div className="space-y-3">
-              {submissions.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="flex items-center justify-between p-4 bg-slate-50/60 hover:bg-slate-50 border border-slate-200/60 rounded-xl transition-all"
-                >
-                  <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex-shrink-0">
-                      <FileText className="w-5 h-5" />
+              {loading && (
+                <p className="text-sm text-slate-400">Loading submissions…</p>
+              )}
+              {error && (
+                <p role="alert" className="text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+              {!loading && !error && submissions.length === 0 && (
+                <p className="text-sm text-slate-400">No submissions yet.</p>
+              )}
+              {submissions.map((sub) => {
+                return (
+                  <div
+                    key={sub.id}
+                    className="flex items-center justify-between p-4 bg-slate-50/60 hover:bg-slate-50 border border-slate-200/60 rounded-xl transition-all"
+                  >
+                    <div className="flex items-center space-x-3.5 min-w-0">
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex-shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-slate-800 truncate">
+                          {sub.filename}
+                        </h4>
+                        <p className="text-xs text-slate-400">
+                          Submitted {formatDate(sub.uploaded_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-slate-800 truncate">
-                        {sub.name}
-                      </h4>
-                      <p className="text-xs text-slate-400">{sub.time}</p>
-                    </div>
-                  </div>
 
-                  <div className="flex-shrink-0 ml-4">
-                    {sub.status === "Pending" ? (
-                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-amber-50 border border-amber-200/60 text-amber-700 text-xs font-semibold rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span>Pending</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-xs font-semibold rounded-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>Approved</span>
-                      </span>
-                    )}
+                    <div className="flex-shrink-0 ml-4">
+                      <StatusPill status={sub.status} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

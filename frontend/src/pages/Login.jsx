@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import AuthVisual from "../components/AuthVisual";
-import { useAuth } from "../lib/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { ROLE_HOME } from "../lib/roles";
 
 export default function Login() {
