@@ -14,13 +14,21 @@ export const SEVERITY = {
 };
 
 export function StatusPill({ status }) {
-  const m = STATUS_META[status] || STATUS_META.pending;
+  // Unknown statuses show their raw value instead of masquerading as pending.
+  const m = STATUS_META[status] ?? {
+    label: status ?? "Unknown",
+    color: "#5B6472",
+    bg: "#F5F6F8",
+  };
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
       style={{ color: m.color, background: m.bg }}
     >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: m.color }}
+      />
       {m.label}
     </span>
   );
