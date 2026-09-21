@@ -1,592 +1,363 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
+  ShieldCheck,
   FileText,
   Clock,
   CheckCircle2,
   XCircle,
-  RotateCcw,
-  ChevronRight,
+  LogOut,
+  User,
+  Sparkles,
   Search,
-  MessageSquare,
-  Eye,
-  Download,
+  Check,
 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { formatDate } from "../lib/format";
 import { StatusPill } from "../components/Badges";
 import AssistPanel from "../components/AssistPanel";
-import { Modal } from "../components/Modal";
-import { Document, Page, pdfjs } from "react-pdf";
-import { renderAsync } from "docx-preview";
-import * as XLSX from "xlsx";
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
-
-const TABS = [
-  { key: "", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "needs_revision", label: "Revision" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
-];
-
-function PDFPreview({ previewURL }) {
-  const [numPages, setNumPages] = useState(null);
-
-  return (
-    <div className="h-[80vh] overflow-y-auto">
-      <div className="flex flex-col items-center gap-4">
-        <Document
-          file={previewURL}
-          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-        >
-          {Array.from({ length: numPages || 0 }, (_, index) => (
-            <div key={index} className="mb-4">
-              <Page
-                pageNumber={index + 1}
-                width={700}
-                renderAnnotationLayer={false}
-                renderTextLayer={false}
-              />
-            </div>
-          ))}
-        </Document>
-      </div>
-    </div>
-  );
-}
-
-function DOCXPreview({ previewURL }) {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!previewURL || !containerRef.current) return;
-
-    const renderDocument = async () => {
-      try {
-        const response = await fetch(previewURL);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch document: ${response.status}`);
-        }
-
-        const buffer = await response.arrayBuffer();
-
-        containerRef.current.innerHTML = "";
-
-        await renderAsync(buffer, containerRef.current);
-      } catch (error) {
-        console.error("DOCX preview error:", error);
-      }
-    };
-
-    renderDocument();
-  }, [previewURL]);
-
-  return (
-    <div className="h-[80vh] overflow-y-auto bg-gray-100 p-4">
-      <div ref={containerRef} />
-    </div>
-  );
-}
-
-function XLSXPreview({ previewURL }) {
-  const [sheets, setSheets] = useState([]);
-  const [activeSheet, setActiveSheet] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!previewURL) return;
-
-    const loadWorkbook = async () => {
-      try {
-        setError("");
-
-        const response = await fetch(previewURL);
-        const buffer = await response.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array" });
-        const parsedSheets = workbook.SheetNames.map((sheetName) => ({
-          name: sheetName,
-          data: XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-            header: 1,
-            defval: "",
-          }),
-        }));
-
-        setSheets(parsedSheets);
-        setActiveSheet(parsedSheets[0]?.name || "");
-      } catch (err) {
-        console.error("Failed to render XLSX:", err);
-        setError("Failed to load spreadsheet.");
-      }
-    };
-    loadWorkbook();
-  }, [previewURL]);
-  if (error) {
-    return <div className="p-4 text-sm text-red-500">{error}</div>;
-  }
-  const activeData =
-    sheets.find((sheet) => sheet.name === activeSheet)?.data || [];
-  return (
-    <div className="h-[80vh] flex flex-col">
-      {sheets.length > 0 && (
-        <div className="flex gap-2 border-b px-3 py-2 overflow-x-auto">
-          {sheets.map((sheet) => (
-            <button
-              key={sheet.name}
-              onClick={() => setActiveSheet(sheet.name)}
-              className={`px-3 py-1 text-sm rounded ${activeSheet === sheet.name ? "bg-gray-200 font-medium" : "hover:bg-gray-100"}`}
-            >
-              {sheet.name}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="flex-1 overflow-auto p-4">
-        <table className="border-collapse text-sm">
-          <tbody>
-            {activeData.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td
-                    key={cellIndex}
-                    className="border border-gray-300 px-3 py-2 whitespace-nowrap"
-                  >
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-export function FilePreview({ previewURL, contentType }) {
-  if (!contentType || !previewURL) return null;
-
-  switch (contentType) {
-    case "application/pdf":
-      return <PDFPreview previewURL={previewURL} />;
-
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      return <DOCXPreview previewURL={previewURL} />;
-
-    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-      return <XLSXPreview previewURL={previewURL} />;
-
-    default:
-      return null;
-  }
-}
 
 export default function OfficerDashboard() {
-  const [filter, setFilter] = useState("");
-  const [query, setQuery] = useState("");
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [filterTab, setFilterTab] = useState("All");
   const [queue, setQueue] = useState([]);
-  const [loadingQueue, setLoadingQueue] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const [decisionError, setDecisionError] = useState("");
-  const [previewURL, setPreviewURL] = useState("");
-  const [isPreviewOpen, setPreviewOpen] = useState(false);
-
-  const loadQueue = useCallback(() => {
-    setLoadingQueue(true);
-
-    api
-      .listDocuments(filter || undefined)
-      .then((docs) => {
-        setQueue(docs);
-
-        if (!selectedId && docs.length) {
-          setSelectedId(docs[0].id);
-        }
-      })
-      .finally(() => setLoadingQueue(false));
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
 
   useEffect(() => {
-    loadQueue();
-  }, [loadQueue]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      return;
+    async function load() {
+      try {
+        setLoading(true);
+        const data = await api.listDocuments();
+        if (cancelled) return;
+        const sorted = [...data].sort(
+          (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
+        );
+        setQueue(sorted);
+        setSelectedId((prev) => prev ?? sorted[0]?.id ?? null);
+        setError("");
+      } catch (err) {
+        if (cancelled) return;
+        setError(err.message || "Failed to load documents.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    api.getDocument(selectedId).then(setDetail);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Derived from the queue so it can never go stale after a status change.
+  const selectedDoc = queue.find((d) => d.id === selectedId) ?? null;
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const handleSelect = (id) => {
+    setSelectedId(id);
     setComment("");
     setDecisionError("");
-  }, [selectedId]);
+  };
 
-  const filtered = queue.filter(
-    (d) =>
-      d.filename.toLowerCase().includes(query.toLowerCase()) ||
-      d.advisor.name.toLowerCase().includes(query.toLowerCase()) ||
-      d.id.toLowerCase().includes(query.toLowerCase()),
-  );
-
-  const decide = async (status) => {
-    if (!comment.trim()) {
-      setDecisionError(
-        "Add a comment before recording a decision — the advisor will see it.",
-      );
-      return;
-    }
-
-    setSubmitting(true);
+  const handleDecision = async (newStatus) => {
+    if (!selectedDoc) return;
+    const id = selectedDoc.id;
+    setDeciding(true);
     setDecisionError("");
-
     try {
-      await api.decide(selectedId, status, comment);
-      await api.getDocument(selectedId).then(setDetail);
-      loadQueue();
+      await api.decide(id, newStatus, comment.trim());
+      setQueue((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d)),
+      );
       setComment("");
     } catch (err) {
-      setDecisionError(err.message);
+      setDecisionError(err.message || "Failed to record decision.");
     } finally {
-      setSubmitting(false);
+      setDeciding(false);
     }
   };
 
-  const download = async () => {
-    const blob = await api.download(selectedId);
-    const url = URL.createObjectURL(blob);
+  const filteredQueue = queue.filter((item) => {
+    if (filterTab === "All") return true;
+    return item.status === filterTab.toLowerCase();
+  });
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = detail.filename;
-
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    URL.revokeObjectURL(url);
-  };
-
-  const preview = async () => {
-    const blob = await api.preview(selectedId);
-    const url = URL.createObjectURL(blob);
-
-    setPreviewURL(url);
-    setPreviewOpen(true);
-  };
-
-  const closePreview = () => {
-    setPreviewOpen(false);
-
-    if (previewURL) {
-      URL.revokeObjectURL(previewURL);
-      setPreviewURL("");
-    }
-  };
+  const pendingCount = queue.filter((s) => s.status === "pending").length;
+  const approvedCount = queue.filter((s) => s.status === "approved").length;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr_320px]">
-      {/* Preview modal */}
-      <Modal isOpen={isPreviewOpen} onClose={closePreview}>
-        {detail && (
-          <FilePreview
-            previewURL={previewURL}
-            contentType={detail.content_type}
-          />
-        )}
-      </Modal>
-
-      {/* Queue */}
-      <div
-        className="rounded-xl border"
-        style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}
-      >
-        <div className="border-b p-4" style={{ borderColor: "#D7DCE3" }}>
-          <div
-            className="mb-3 flex items-center gap-2 rounded-md border px-2.5 py-1.5"
-            style={{ borderColor: "#D7DCE3" }}
-          >
-            <Search size={14} style={{ color: "#8A93A1" }} />
-
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search advisor, file, ID"
-              className="w-full bg-transparent text-sm outline-none"
-            />
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      {/* Top Header Navigation */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-950 rounded-xl text-white shadow-md">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                Compliance Portal
+              </h1>
+              <p className="text-xs text-indigo-600 font-semibold">
+                Officer Verification Workspace
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setFilter(t.key)}
-                className="rounded-full px-2.5 py-1 text-xs font-medium"
-                style={
-                  filter === t.key
-                    ? { background: "#1F3157", color: "#FFFFFF" }
-                    : { background: "#F1F2F5", color: "#5B6472" }
-                }
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="max-h-[560px] overflow-y-auto">
-          {loadingQueue && (
-            <div
-              className="px-4 py-10 text-center text-sm"
-              style={{ color: "#8A93A1" }}
-            >
-              Loading…
+          <div className="flex items-center space-x-4">
+            <div className="hidden sm:flex items-center space-x-2 px-3.5 py-2 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs font-semibold text-indigo-900">
+              <User className="w-3.5 h-3.5 text-indigo-600" />
+              <span>{user.name}</span>
             </div>
-          )}
-
-          {!loadingQueue && filtered.length === 0 && (
-            <div
-              className="px-4 py-10 text-center text-sm"
-              style={{ color: "#8A93A1" }}
-            >
-              Nothing in this queue.
-            </div>
-          )}
-
-          {filtered.map((d) => (
             <button
-              key={d.id}
-              onClick={() => setSelectedId(d.id)}
-              className="flex w-full flex-col gap-1.5 border-b px-4 py-3 text-left"
-              style={{
-                borderColor: "#EEF0F3",
-                background: d.id === selectedId ? "#F5F6F8" : "transparent",
-              }}
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-4 py-2 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-xl transition-all"
             >
-              <div className="flex items-center justify-between">
-                <span
-                  className="font-mono text-xs"
-                  style={{ color: "#8A93A1" }}
-                >
-                  {d.id}
-                </span>
-
-                <StatusPill status={d.status} />
-              </div>
-
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <FileText size={14} style={{ color: "#5B6472" }} />
-                <span className="truncate">{d.filename}</span>
-              </div>
-
-              <div
-                className="flex items-center justify-between text-xs"
-                style={{ color: "#8A93A1" }}
-              >
-                <span>{d.advisor.name}</span>
-                <span>{new Date(d.uploaded_at).toLocaleDateString()}</span>
-              </div>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign out</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Document + decision */}
-      <div
-        className="rounded-xl border p-6"
-        style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}
-      >
-        {!detail ? (
-          <div
-            className="py-20 text-center text-sm"
-            style={{ color: "#8A93A1" }}
-          >
-            Select a document from the queue.
           </div>
-        ) : (
-          <>
-            <div
-              className="mb-1 flex items-center gap-2 text-xs"
-              style={{ color: "#8A93A1" }}
-            >
-              {detail.thread.map((t, i) => (
-                <React.Fragment key={t.id}>
-                  {i > 0 && <ChevronRight size={12} />}
+        </div>
+      </header>
 
-                  <span
-                    style={{
-                      color: t.id === detail.id ? "#1F3157" : "#8A93A1",
-                      fontWeight: t.id === detail.id ? 600 : 400,
-                    }}
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Metric Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Total Queue
+              </p>
+              <h3 className="text-3xl font-extrabold text-slate-900">
+                {queue.length}
+              </h3>
+            </div>
+            <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-2xl text-indigo-600">
+              <FileText className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Requires Review
+              </p>
+              <h3 className="text-3xl font-extrabold text-amber-600">
+                {pendingCount}
+              </h3>
+            </div>
+            <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-2xl text-amber-600">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Verified & Approved
+              </p>
+              <h3 className="text-3xl font-extrabold text-emerald-600">
+                {approvedCount}
+              </h3>
+            </div>
+            <div className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Workspace Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Review Queue List */}
+          <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Verification Queue
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Select a document to inspect AI pre-checks.
+                </p>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-medium">
+                {["All", "Pending", "Approved"].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setFilterTab(tab)}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      filterTab === tab
+                        ? "bg-white text-indigo-600 shadow-sm font-semibold"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
                   >
-                    {t.label}
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-
-            <h2
-              className="mb-1"
-              style={{
-                fontFamily: "'Source Serif 4', serif",
-                fontSize: "22px",
-                fontWeight: 600,
-              }}
-            >
-              {detail.filename}
-            </h2>
-
-            <div
-              className="mb-5 flex items-center justify-between gap-3 text-sm"
-              style={{ color: "#5B6472" }}
-            >
-              <span>{detail.advisor.name}</span>
-              <span>·</span>
-
-              <span className="flex items-center gap-1">
-                <Clock size={13} />
-                {new Date(detail.uploaded_at).toLocaleString()}
-              </span>
-
-              <Eye size={13} onClick={preview} className="cursor-pointer" />
-
-              <Download
-                size={13}
-                onClick={download}
-                className="cursor-pointer"
-              />
-            </div>
-
-            <div
-              className="mb-6 rounded-lg p-5"
-              style={{
-                background: "#F5F6F8",
-                minHeight: "120px",
-                maxHeight: "400px",
-                overflowY: "auto",
-              }}
-            >
-              <pre
-                className="whitespace-pre-wrap font-sans text-sm leading-relaxed"
-                style={{ color: "#16202E" }}
-              >
-                {detail.extracted_text ||
-                  "No text could be extracted from this document."}
-              </pre>
-            </div>
-
-            {detail.reviews?.length > 0 && (
-              <div className="mb-5 space-y-2">
-                {detail.reviews.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-md px-3 py-2 text-xs"
-                    style={{ background: "#F5F6F8", color: "#5B6472" }}
-                  >
-                    <strong style={{ color: "#16202E" }}>
-                      {r.officer.name}
-                    </strong>{" "}
-                    — {r.status} — &quot;{r.comment}&quot;
-                  </div>
+                    {tab}
+                  </button>
                 ))}
               </div>
-            )}
+            </div>
 
-            {detail.status === "pending" ||
-            detail.status === "needs_revision" ? (
-              <>
-                <div className="mb-4">
-                  <label
-                    className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: "#5B6472" }}
-                  >
-                    <MessageSquare size={13} />
-                    Decision comment
-                  </label>
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              {loading && (
+                <p className="text-sm text-slate-400">Loading queue…</p>
+              )}
+              {error && (
+                <p role="alert" className="text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+              {!loading && !error && filteredQueue.length === 0 && (
+                <p className="text-sm text-slate-400">
+                  No documents in this view.
+                </p>
+              )}
+              {filteredQueue.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleSelect(item.id)}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedDoc?.id === item.id
+                      ? "bg-indigo-50/50 border-indigo-600 shadow-sm"
+                      : "bg-slate-50/60 hover:bg-slate-50 border-slate-200/60"
+                  }`}
+                >
+                  <div className="flex items-center space-x-3.5 min-w-0">
+                    <div className="p-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl flex-shrink-0 shadow-sm">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-slate-800 truncate">
+                        {item.filename}
+                      </h4>
+                      <p className="text-xs text-slate-400">
+                        Advisor: {item.advisor?.name} •{" "}
+                        {formatDate(item.uploaded_at)}
+                      </p>
+                    </div>
+                  </div>
 
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Explain the decision — the advisor sees this."
-                    rows={3}
-                    className="w-full rounded-md border p-3 text-sm outline-none"
-                    style={{ borderColor: "#D7DCE3" }}
-                  />
+                  <div className="flex-shrink-0 ml-4">
+                    <StatusPill status={item.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-                  {decisionError && (
-                    <p className="mt-1.5 text-xs" style={{ color: "#B0453D" }}>
-                      {decisionError}
-                    </p>
-                  )}
+          {/* Right Column: Inspector & Action Panel */}
+          <div className="lg:col-span-6 bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            {selectedDoc ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center space-x-1 mb-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>AI Pre-Screening Result</span>
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {selectedDoc.filename}
+                    </h3>
+                  </div>
+                  <StatusPill status={selectedDoc.status} />
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    disabled={submitting}
-                    onClick={() => decide("approved")}
-                    className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                    style={{ background: "#3E7A5C" }}
-                  >
-                    <CheckCircle2 size={15} />
-                    Approve
-                  </button>
+                <div className="space-y-4">
+                  <AssistPanel documentId={selectedDoc.id} />
 
-                  <button
-                    disabled={submitting}
-                    onClick={() => decide("needs_revision")}
-                    className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                    style={{ background: "#1F3157" }}
-                  >
-                    <RotateCcw size={15} />
-                    Needs revision
-                  </button>
-
-                  <button
-                    disabled={submitting}
-                    onClick={() => decide("rejected")}
-                    className="flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                    style={{ background: "#B0453D" }}
-                  >
-                    <XCircle size={15} />
-                    Reject
-                  </button>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                      <span className="text-slate-400 block mb-0.5">
+                        Submitted By
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {selectedDoc.advisor?.name}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+                      <span className="text-slate-400 block mb-0.5">
+                        Timestamp
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDate(selectedDoc.uploaded_at)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </>
+
+                {/* Officer Action Buttons */}
+                {selectedDoc.status === "pending" ? (
+                  <div className="space-y-3 pt-4">
+                    <textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Comment for the advisor (recommended when requesting changes)"
+                      rows={3}
+                      className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-600"
+                    />
+                    {decisionError && (
+                      <p role="alert" className="text-xs text-red-600">
+                        {decisionError}
+                      </p>
+                    )}
+                    <div className="flex items-center space-x-3">
+                      <button
+                        type="button"
+                        disabled={deciding}
+                        onClick={() => handleDecision("approved")}
+                        className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Approve Document</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={deciding}
+                        onClick={() => handleDecision("needs_revision")}
+                        className="flex-1 py-3 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-semibold text-xs rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Request Changes</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="pt-4 text-xs text-slate-500">
+                    This document has already been reviewed.
+                  </p>
+                )}
+              </div>
             ) : (
-              <div
-                className="rounded-md px-4 py-3 text-sm"
-                style={{ background: "#F5F6F8", color: "#5B6472" }}
-              >
-                This document already has a final decision. No further action
-                needed.
+              <div className="h-full flex flex-col items-center justify-center text-center py-20 space-y-3 text-slate-400">
+                <Search className="w-10 h-10 text-slate-300" />
+                <p className="text-sm font-medium">
+                  Select a document from the queue to inspect details.
+                </p>
               </div>
             )}
-          </>
-        )}
-      </div>
 
-      {/* AI assist */}
-      <div
-        className="rounded-xl border p-5"
-        style={{ borderColor: "#D7DCE3", background: "#FFFFFF" }}
-      >
-        <div className="mb-4 text-sm font-semibold">AI assist</div>
-
-        {detail ? (
-          <AssistPanel documentId={detail.id} />
-        ) : (
-          <p className="text-sm" style={{ color: "#8A93A1" }}>
-            Select a document to see its analysis.
-          </p>
-        )}
-      </div>
+            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+              <span>Secure Compliance Node v2.4</span>
+              <span>Encrypted Officer Session</span>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
