@@ -44,22 +44,10 @@ async def validation_exception_handler(request, exc: RequestValidationError):
     )
 
 
-<<<<<<< HEAD
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-=======
->>>>>>> f50204938a048a9cc793b8f3109b81715c98ec32
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(reviews.router)
 app.include_router(admin.router)
-
 
 
 @app.get("/health")

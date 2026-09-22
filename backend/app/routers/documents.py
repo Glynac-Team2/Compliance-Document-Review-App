@@ -1,11 +1,7 @@
 import os
 from typing import List, Optional
 
-<<<<<<< HEAD
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status, BackgroundTasks
-=======
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
->>>>>>> f50204938a048a9cc793b8f3109b81715c98ec32
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -203,36 +199,6 @@ def get_document(
 
 
 @router.get("/{document_id}/download")
-<<<<<<< HEAD
-def download_document(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if user.role not in [Role.advisor, Role.officer] and doc.advisor_id != user.id:
-        raise HTTPException(status_code=403, detail="You are forbidden from accessing/performing any actions to this resource")
-
-    return FileResponse(
-        path=doc.file_path, 
-        media_type=doc.content_type, 
-        filename=doc.filename,
-        headers={"Content-Disposition": f"attachment; filename=\"{doc.filename}\""}
-    )
-
-    
-@router.get("/{document_id}/preview")
-def preview_document(document_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == document_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if user.role not in [Role.advisor, Role.officer] and doc.advisor_id != user.id:
-        raise HTTPException(status_code=403, detail="You are forbidden from accessing/performing any actions to this resource")
-
-    return FileResponse(
-        path=doc.file_path, 
-        media_type=doc.content_type, 
-        filename=doc.filename,
-        headers={"Content-Disposition": f"inline; filename=\"{doc.filename}\""}
-=======
 def download_document(
     document_id: str,
     user: User = Depends(get_current_user),
@@ -281,7 +247,6 @@ def preview_document(
         media_type=doc.content_type,
         filename=doc.filename,
         headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
->>>>>>> f50204938a048a9cc793b8f3109b81715c98ec32
     )
 
 
