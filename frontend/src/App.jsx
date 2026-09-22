@@ -5,6 +5,8 @@ import AdvisorDashboard from "./pages/AdvisorDashboard";
 import OfficerDashboard from "./pages/OfficerDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import RequireRole from "./components/RequireRole";
+import RequireAuth from "./components/RequireAuth";
+import Layout from "./layouts/Layout";
 
 export default function App() {
   return (
@@ -15,21 +17,29 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route
-            path="/advisor"
             element={
-              <RequireRole role="advisor">
-                <AdvisorDashboard />
-              </RequireRole>
+              <RequireAuth>
+                <Layout />
+              </RequireAuth>
             }
-          />
-          <Route
-            path="/officer"
-            element={
-              <RequireRole role="officer">
-                <OfficerDashboard />
-              </RequireRole>
-            }
-          />
+          >
+            <Route
+              path="/advisor"
+              element={
+                <RequireRole role="advisor">
+                  <AdvisorDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/officer"
+              element={
+                <RequireRole role="officer">
+                  <OfficerDashboard />
+                </RequireRole>
+              }
+            />
+          </Route>
         </Routes>
       </Router>
     </AuthProvider>
