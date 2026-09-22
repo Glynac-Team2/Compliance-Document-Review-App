@@ -1,25 +1,18 @@
 import { useState, useEffect } from "react";
 import {
-  ShieldCheck,
   FileText,
   UploadCloud,
   Clock,
   CheckCircle2,
-  LogOut,
-  User,
   FileCheck,
   Sparkles,
   AlertCircle,
 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
 import { StatusPill } from "../components/Badges";
-import { useNavigate } from "react-router-dom";
 
 export default function AdvisorDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
@@ -55,11 +48,6 @@ export default function AdvisorDashboard() {
       cancelled = true;
     };
   }, []);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
 
   const handleFileChange = (e) => {
     if (e.target.files[0]) {

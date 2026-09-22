@@ -1,26 +1,19 @@
 import { useState, useEffect } from "react";
 import {
-  ShieldCheck,
   FileText,
   Clock,
   CheckCircle2,
   XCircle,
-  LogOut,
-  User,
   Sparkles,
   Search,
   Check,
 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
 import { StatusPill } from "../components/Badges";
 import AssistPanel from "../components/AssistPanel";
 
 export default function OfficerDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [filterTab, setFilterTab] = useState("All");
   const [queue, setQueue] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -60,11 +53,6 @@ export default function OfficerDashboard() {
 
   // Derived from the queue so it can never go stale after a status change.
   const selectedDoc = queue.find((d) => d.id === selectedId) ?? null;
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
 
   const handleSelect = (id) => {
     setSelectedId(id);
