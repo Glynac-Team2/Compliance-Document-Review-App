@@ -53,7 +53,7 @@ def signup(
     db.refresh(user)
 
     token = create_access_token(subject=user.id, role=user.role.value)
-    return TokenOut(access_token=token, role=user.role, name=user.name)
+    return TokenOut(id=user.id, access_token=token, role=user.role, name=user.name)
 
 
 @router.post("/login", response_model=TokenOut)
@@ -83,4 +83,4 @@ def login(
         )
 
     token = create_access_token(subject=user.id, role=user.role.value)
-    return TokenOut(access_token=token, role=user.role, name=user.name)
+    return TokenOut(id=user.id, access_token=token, role=user.role, name=user.name)

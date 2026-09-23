@@ -9,22 +9,22 @@ export function AuthProvider({ children }) {
     return raw ? JSON.parse(raw) : null;
   });
 
-  const persist = (token, role, name) => {
+  const persist = (token, id, role, name) => {
     localStorage.setItem("token", token);
-    const u = { role, name };
+    const u = { id, role, name };
     localStorage.setItem("user", JSON.stringify(u));
     setUser(u);
   };
 
   const login = useCallback(async (email, password) => {
     const res = await api.login({ email, password });
-    persist(res.access_token, res.role, res.name);
+    persist(res.access_token, res.id, res.role, res.name);
     return res;
   }, []);
 
   const signup = useCallback(async (email, name, password, role) => {
     const res = await api.signup({ email, name, password, role });
-    persist(res.access_token, res.role, res.name);
+    persist(res.access_token, res.id, res.role, res.name);
     return res;
   }, []);
 

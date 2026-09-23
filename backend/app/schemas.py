@@ -26,6 +26,7 @@ class LoginIn(BaseModel):
 
 
 class TokenOut(BaseModel):
+    id: str
     access_token: str
     token_type: str = "bearer"
     role: Role

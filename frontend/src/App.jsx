@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import RequireRole from "./components/RequireRole";
 import RequireAuth from "./components/RequireAuth";
 import Layout from "./layouts/Layout";
+import AdminDashboard from "./pages/AdminDashboard";
 
 export default function App() {
   return (
@@ -36,6 +37,14 @@ export default function App() {
               element={
                 <RequireRole role="officer">
                   <OfficerDashboard />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <RequireRole role="admin">
+                  <AdminDashboard />
                 </RequireRole>
               }
             />

@@ -96,6 +96,32 @@ async function preview(id) {
   return fetchBlob(`${BASE}/documents/${id}/preview`);
 }
 
+async function listUsers() {
+  return fetch(`${BASE}/admin/users`, {
+    headers: { ...authHeaders() },
+  }).then(handle);
+}
+
+async function getUser(id) {
+  return fetch(`${BASE}/admin/users/${id}`, {
+    headers: { ...authHeaders() },
+  }).then(handle);
+}
+
+async function updateUser(id, payload) {
+  return fetch(`${BASE}/admin/users/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      role: payload.role,
+      is_active: payload.isActive,
+    }),
+  }).then(handle);
+}
+
 export const api = {
   listDocuments,
   getDocument,
@@ -104,6 +130,9 @@ export const api = {
   decide,
   download,
   preview,
+  listUsers,
+  getUser,
+  updateUser,
   signup: (payload) =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",
