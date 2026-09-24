@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Moon,
   Sun,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -23,6 +25,8 @@ export default function AdvisorDashboard() {
   const [error, setError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Toggle dark mode class on root HTML element
   const toggleDarkMode = () => {
@@ -35,32 +39,28 @@ export default function AdvisorDashboard() {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadDocuments = async (isManualRefresh = false) => {
+    try {
+      if (isManualRefresh) setRefreshing(true);
+      else setLoading(true);
 
-    async function load() {
-      try {
-        setLoading(true);
-        const data = await api.listDocuments();
-        if (cancelled) return;
-        setSubmissions(
-          [...data].sort(
-            (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
-          ),
-        );
-        setError("");
-      } catch (err) {
-        if (cancelled) return;
-        setError(err.message || "Failed to load documents.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const data = await api.listDocuments();
+      setSubmissions(
+        [...data].sort(
+          (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
+        ),
+      );
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load documents.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
 
-    load();
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    loadDocuments();
   }, []);
 
   const handleFileChange = (e) => {
@@ -92,6 +92,17 @@ export default function AdvisorDashboard() {
   const approvedCount = submissions.filter(
     (s) => s.status === "approved",
   ).length;
+
+  // Filter submissions based on search input
+  const filteredSubmissions = submissions.filter((sub) =>
+    sub.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Helper to extract file extension badge text
+  const getFileExtension = (filename) => {
+    const ext = filename.split('.').pop();
+    return ext ? ext.toUpperCase() : 'FILE';
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
@@ -258,9 +269,33 @@ export default function AdvisorDashboard() {
                 Track real-time review status of uploaded documents.
               </p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
-              {submissions.length} Total
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => loadDocuments(true)}
+                disabled={refreshing}
+                title="Refresh Submissions"
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
+                {submissions.length} Total
+              </span>
+            </div>
+          </div>
+
+          {/* Search Filter Input Bar */}
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
+              <Search className="w-4 h-4" />
             </span>
+            <input
+              type="text"
+              placeholder="Search submissions by file name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            />
           </div>
 
           <div className="space-y-3">
@@ -275,15 +310,21 @@ export default function AdvisorDashboard() {
             {!loading && !error && submissions.length === 0 && (
               <p className="text-sm text-slate-400 dark:text-slate-500">No submissions yet.</p>
             )}
-            {submissions.map((sub) => {
+            {!loading && !error && submissions.length > 0 && filteredSubmissions.length === 0 && (
+              <p className="text-sm text-slate-400 dark:text-slate-500">No matching submissions found.</p>
+            )}
+            {filteredSubmissions.map((sub) => {
               return (
                 <div
                   key={sub.id}
                   className="flex items-center justify-between p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all"
                 >
                   <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
+                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0 relative">
                       <FileText className="w-5 h-5" />
+                      <span className="absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1 bg-indigo-600 text-white rounded">
+                        {getFileExtension(sub.filename)}
+                      </span>
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
