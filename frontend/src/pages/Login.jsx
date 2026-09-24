@@ -28,6 +28,12 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    // Redirects browser to your backend's Google OAuth route
+    // Change http://localhost:5000 to match your actual backend server URL/port
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans">
       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen p-4 lg:p-7 gap-4">
@@ -126,7 +132,11 @@ export default function Login() {
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
 
-              <button className="flex w-full items-center justify-center gap-2.5 rounded-full border-[1.5px] border-slate-200 bg-white py-3 text-sm font-semibold text-[#14121F] transition hover:border-slate-400 hover:bg-slate-50">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex w-full items-center justify-center gap-2.5 rounded-full border-[1.5px] border-slate-200 bg-white py-3 text-sm font-semibold text-[#14121F] transition hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
+              >
                 <GoogleIcon />
                 Continue with Google
               </button>
