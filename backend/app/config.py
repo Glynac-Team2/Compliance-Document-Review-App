@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     max_upload_mb: int = 10
     upload_dir: str = "./uploads"
     llm_api_key: str = ""
+    resend_api_key: str = ""
+    from_address: str
+    frontend_base_url: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

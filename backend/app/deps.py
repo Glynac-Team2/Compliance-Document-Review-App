@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -5,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.errors import error_detail
 from app.models import Role, User
-from app.security import decode_access_token
+from app.security import decode_access_token, password_fingerprint
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -24,6 +26,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=[error_detail("User no longer exists")],
+        )
+
+    if not hmac.compare_digest(payload.get("claim", ""), password_fingerprint(user.password_hash)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=[error_detail("Could not validate credentials")],
         )
 
     if not user.is_active:
