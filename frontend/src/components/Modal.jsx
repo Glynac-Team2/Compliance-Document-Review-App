@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 
-export function Modal({ isOpen, onClose, children }) {
+export function Modal({ isOpen, onClose, children, maxWidth = "max-w-4xl" }) {
   useEffect(() => {
     if (!isOpen) return;
     const listener = (e) => {
@@ -22,7 +22,7 @@ export function Modal({ isOpen, onClose, children }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] w-full mx-4 overflow-auto"
+        className={`bg-white rounded-lg shadow-xl ${maxWidth} max-h-[90vh] w-full mx-4 overflow-auto`}
       >
         {children}
       </div>

@@ -1,17 +1,21 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
 import AuthVisual from "../components/AuthVisual";
 import { useAuth } from "../contexts/AuthContext";
 import { ROLE_HOME } from "../lib/roles";
+import { Modal } from "../components/Modal";
+import ForgotPasswordForm from "../components/ForgotPasswordForm";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgot, setShowForgot] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -67,7 +71,11 @@ export default function Login() {
                   Register
                 </Link>
               </div>
-
+              {location.state?.resetSuccess && (
+                <p role="status" className="mb-4 text-[13px] text-emerald-600">
+                  Password updated. Sign in with your new password.
+                </p>
+              )}
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="mb-2 block text-[13px] font-medium text-slate-600">
@@ -88,12 +96,13 @@ export default function Login() {
                     <label className="text-[13px] font-medium text-slate-600">
                       Password
                     </label>
-                    <a
-                      href="#"
+                    <button
+                      type="button"
+                      onClick={() => setShowForgot(true)}
                       className="text-xs font-semibold text-indigo-600 hover:underline"
                     >
                       Forgot password?
-                    </a>
+                    </button>
                   </div>
                   <input
                     type="password"
@@ -142,6 +151,16 @@ export default function Login() {
         {/* Right: shared visual */}
         <AuthVisual />
       </div>
+      <Modal
+        isOpen={showForgot}
+        onClose={() => setShowForgot(false)}
+        maxWidth="max-w-md"
+      >
+        <ForgotPasswordForm
+          initialEmail={email}
+          onClose={() => setShowForgot(false)}
+        />
+      </Modal>
     </div>
   );
 }

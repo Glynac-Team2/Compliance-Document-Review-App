@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import RequireRole from "./components/RequireRole";
 import RequireAuth from "./components/RequireAuth";
 import Layout from "./layouts/Layout";
+import ResetPassword from "./pages/ResetPassword";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             element={
               <RequireAuth>

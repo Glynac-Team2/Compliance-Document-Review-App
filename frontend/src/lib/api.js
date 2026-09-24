@@ -1,5 +1,11 @@
 const BASE = import.meta.env.VITE_API_URL || "/api";
 
+let onUnauthorized = null;
+
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
 function authHeaders() {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -7,6 +13,7 @@ function authHeaders() {
 
 async function handle(res) {
   if (!res.ok) {
+    if (res.status === 401 && !res.url.includes("/auth/")) onUnauthorized?.();
     let detail = res.statusText;
     try {
       const body = await res.json();
@@ -69,6 +76,7 @@ async function fetchBlob(path) {
     headers: { ...authHeaders() },
   });
   if (!res.ok) {
+    if (res.status === 401 && !res.url.includes("/auth/")) onUnauthorized?.();
     let detail = res.statusText;
     try {
       const body = await res.json();
@@ -96,6 +104,22 @@ async function preview(id) {
   return fetchBlob(`${BASE}/documents/${id}/preview`);
 }
 
+async function forgotPassword(email) {
+  return fetch(`${BASE}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  }).then(handle);
+}
+
+async function resetPassword(token, newPassword) {
+  return fetch(`${BASE}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  }).then(handle);
+}
+
 export const api = {
   listDocuments,
   getDocument,
@@ -104,6 +128,8 @@ export const api = {
   decide,
   download,
   preview,
+  forgotPassword,
+  resetPassword,
   signup: (payload) =>
     fetch(`${BASE}/auth/signup`, {
       method: "POST",
