@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
@@ -166,13 +167,45 @@ def list_documents(
         # An advisor only ever sees their own submissions — enforced here,
         # not left to the frontend to filter client-side.
         query = query.filter(Document.advisor_id == user.id)
+
     # Officers see everyone's queue: any officer can act on any document,
     # there's no per-officer routing per the spec.
 
     if status_filter:
         query = query.filter(Document.status == status_filter)
 
-    return query.order_by(Document.uploaded_at.desc()).all()
+    docs = query.order_by(Document.uploaded_at.desc()).all()
+
+    if user.role == Role.advisor:
+        previous_seen = user.last_seen_at
+        user.last_seen_at = datetime.utcnow()
+        db.commit()
+
+        result = []
+        for doc in docs:
+            latest_review = doc.reviews[-1] if doc.reviews else None
+            is_new = latest_review is not None and (
+                previous_seen is None or latest_review.decided_at > previous_seen
+            )
+            out = DocumentOut.model_validate(doc)
+            out.is_new = is_new
+            result.append(out)
+        return result
+
+    if user.role == Role.officer:
+        previous_seen = user.last_seen_at
+        user.last_seen_at = datetime.utcnow()
+        db.commit()
+
+        result = []
+        for doc in docs:
+            is_new = previous_seen is None or doc.uploaded_at > previous_seen
+            out = DocumentOut.model_validate(doc)
+            out.is_new = is_new
+            result.append(out)
+        return result
+
+    return docs
 
 
 @router.get("/{document_id}", response_model=DocumentDetailOut)

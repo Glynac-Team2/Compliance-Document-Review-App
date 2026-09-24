@@ -99,6 +99,7 @@ class DocumentOut(BaseModel):
     revises_id: str | None = None
     reviews: list[ReviewOut] = []
     extracted_text: str | None = None
+    is_new: bool = False
 
     class Config:
         from_attributes = True

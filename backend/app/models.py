@@ -49,6 +49,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=gen_id)
     organization_id = Column(String, ForeignKey("organizations.id"), index=True, nullable=False)
     is_active = Column(Boolean, default=True, server_default="true", nullable=False)
+    last_seen_at = Column(DateTime)
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)

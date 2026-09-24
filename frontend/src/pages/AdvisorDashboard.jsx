@@ -95,7 +95,6 @@ export default function AdvisorDashboard() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
-      
       {/* Top Header Section with Dark Mode Toggle */}
       <div className="flex justify-between items-center">
         <div>
@@ -110,7 +109,11 @@ export default function AdvisorDashboard() {
           onClick={toggleDarkMode}
           className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 rounded-xl shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold cursor-pointer"
         >
-          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+          {isDarkMode ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
           <span>{isDarkMode ? "Light Mode" : "Dark Mode"}</span>
         </button>
       </div>
@@ -265,15 +268,22 @@ export default function AdvisorDashboard() {
 
           <div className="space-y-3">
             {loading && (
-              <p className="text-sm text-slate-400 dark:text-slate-500">Loading submissions…</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">
+                Loading submissions…
+              </p>
             )}
             {error && (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
                 {error}
               </p>
             )}
             {!loading && !error && submissions.length === 0 && (
-              <p className="text-sm text-slate-400 dark:text-slate-500">No submissions yet.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">
+                No submissions yet.
+              </p>
             )}
             {submissions.map((sub) => {
               return (
@@ -286,10 +296,15 @@ export default function AdvisorDashboard() {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {sub.filename}
-                      </h4>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-800 truncate">
+                          {sub.filename}
+                        </h4>
+                        {sub.is_new && (
+                          <span className="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400">
                         Submitted {formatDate(sub.uploaded_at)}
                       </p>
                     </div>

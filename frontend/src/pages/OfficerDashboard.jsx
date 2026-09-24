@@ -24,7 +24,7 @@ export default function OfficerDashboard() {
   const [comment, setComment] = useState("");
   const [deciding, setDeciding] = useState(false);
   const [decisionError, setDecisionError] = useState("");
-  
+
   // State for tracking dark mode status inside the component
   const [isDark, setIsDark] = useState(() => {
     return document.documentElement.classList.contains("dark");
@@ -218,7 +218,10 @@ export default function OfficerDashboard() {
               <p className="text-sm text-slate-400">Loading queue…</p>
             )}
             {error && (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
                 {error}
               </p>
             )}
@@ -242,10 +245,15 @@ export default function OfficerDashboard() {
                     <FileText className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {item.filename}
-                    </h4>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-800 truncate">
+                        {item.filename}
+                      </h4>
+                      {item.is_new && (
+                        <span className="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400">
                       Advisor: {item.advisor?.name} •{" "}
                       {formatDate(item.uploaded_at)}
                     </p>
@@ -311,7 +319,10 @@ export default function OfficerDashboard() {
                     className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
                   />
                   {decisionError && (
-                    <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+                    <p
+                      role="alert"
+                      className="text-xs text-red-600 dark:text-red-400"
+                    >
                       {decisionError}
                     </p>
                   )}
