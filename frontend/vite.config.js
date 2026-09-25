@@ -5,10 +5,23 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-      },
+    lib: {
+      entry: resolve(__dirname, 'src/main.jsx'),
+      name: 'FrontendApp',
+      fileName: 'frontend-app',
+      formats: ['es']
     },
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM'
+        }
+      }
+    }
   },
+  define: {
+    'process.env': {}
+  }
 })
