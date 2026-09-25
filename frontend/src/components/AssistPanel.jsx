@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { ShieldCheck, AlertTriangle, Scale, WifiOff } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Scale, WifiOff, Copy, Check } from "lucide-react";
 import { api } from "../lib/api";
 import { StatusPill, SeverityTag } from "./Badges";
 
 export default function AssistPanel({ documentId }) {
   const [state, setState] = useState({ loading: true, data: null, error: null });
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(() => {
     setState({ loading: true, data: null, error: null });
@@ -18,12 +19,17 @@ export default function AssistPanel({ documentId }) {
     load();
   }, [load]);
 
+  const handleCopySummary = () => {
+    if (!state.data?.summary) return;
+    navigator.clipboard.writeText(state.data.summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (state.loading) {
-    return <p className="text-sm" style={{ color: "#8A93A1" }}>Loading assist\u2026</p>;
+    return <p className="text-sm" style={{ color: "#8A93A1" }}>Loading assist…</p>;
   }
 
-  // Network/server failure, or the endpoint's "unavailable" response
-  // either way the review page (and the decision buttons) stay usable.
   if (state.error || (state.data && state.data.available === false)) {
     return (
       <div className="rounded-lg border p-5" style={{ borderColor: "#D7DCE3" }}>
@@ -37,7 +43,7 @@ export default function AssistPanel({ documentId }) {
         </p>
         <button
           onClick={load}
-          className="mt-4 rounded-md border px-3 py-1.5 text-sm font-medium"
+          className="mt-4 rounded-md border px-3 py-1.5 text-sm font-medium cursor-pointer"
           style={{ borderColor: "#1F3157", color: "#1F3157" }}
         >
           Retry
@@ -51,8 +57,19 @@ export default function AssistPanel({ documentId }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "#5B6472" }}>
-          <ShieldCheck size={14} /> AI summary
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "#5B6472" }}>
+            <ShieldCheck size={14} /> AI summary
+          </div>
+          <button
+            onClick={handleCopySummary}
+            className="flex items-center space-x-1 text-[11px] font-medium px-2 py-1 rounded border transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
+            style={{ borderColor: "#D7DCE3", color: "#5B6472" }}
+            title="Copy summary to clipboard"
+          >
+            {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+            <span>{copied ? "Copied" : "Copy"}</span>
+          </button>
         </div>
         <p className="text-sm leading-relaxed" style={{ color: "#16202E" }}>{doc.summary}</p>
       </div>
