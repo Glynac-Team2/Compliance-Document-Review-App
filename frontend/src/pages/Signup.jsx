@@ -10,7 +10,7 @@ import {
   Briefcase,
   ShieldAlert,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { ROLE_HOME } from "../lib/roles";
 
@@ -42,13 +42,12 @@ export default function Signup() {
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-slate-50 font-sans">
       {/* Left Column: Branding Banner */}
-      <div className="lg:col-span-6 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-10 lg:p-16 flex flex-col justify-between text-white relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="lg:col-span-5 bg-indigo-950 p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-900 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
         <div className="flex items-center space-x-3 relative z-10">
-          <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 text-white shadow-xl">
-            <ShieldCheck className="w-7 h-7" />
+          <div className="p-2.5 bg-indigo-900/60 backdrop-blur-md rounded-2xl border border-indigo-800 text-white shadow-xl">
+            <ShieldCheck className="w-7 h-7 text-indigo-400" />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">
@@ -61,7 +60,7 @@ export default function Signup() {
         </div>
 
         <div className="space-y-6 my-auto relative z-10 py-10">
-          <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 text-xs font-medium">
+          <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-indigo-900/60 border border-indigo-800 text-indigo-200 text-xs font-medium backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
             <span>Workspace Registration</span>
           </div>
@@ -70,12 +69,12 @@ export default function Signup() {
             Join the automated workspace for secure document verification.
           </h2>
 
-          <p className="text-indigo-100/80 text-sm lg:text-base leading-relaxed">
+          <p className="text-indigo-200/80 text-sm lg:text-base leading-relaxed">
             Register your profile as an advisor to submit compliance files, or
             as a compliance officer to review and verify incoming documentation.
           </p>
 
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3.5 pt-2">
             <div className="flex items-center space-x-3 text-sm text-indigo-100">
               <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
               <span>Role-based portal access</span>
@@ -87,128 +86,148 @@ export default function Signup() {
           </div>
         </div>
 
-        <div className="text-xs text-indigo-300/60 relative z-10">
+        <div className="text-xs text-indigo-400/60 relative z-10">
           © {new Date().getFullYear()} Compliance Review Workspace. All rights
           reserved.
         </div>
       </div>
 
       {/* Right Column: Signup Form with Role Picker */}
-      <div className="lg:col-span-6 flex items-center justify-center p-8 lg:p-16 bg-white">
+      <div className="lg:col-span-7 flex items-center justify-center p-8 lg:p-12 bg-white">
         <div className="w-full max-w-md space-y-6">
-          <div className="space-y-2 flex items-center justify-between">
+          <div className="space-y-1 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                 Create an account
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 mt-0.5">
                 Select your role and enter your details.
               </p>
             </div>
-            <a
-              href="/login"
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100"
+            <Link
+              to="/login"
+              className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors"
             >
               Sign in
-            </a>
+            </Link>
           </div>
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-5">
             {/* Role Selector Cards */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Select Role
               </label>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <button
-                  type="button"
+              <div className="grid grid-cols-2 gap-3">
+                {/* Advisor Card */}
+                <div
                   onClick={() => setRole("advisor")}
-                  className={`p-3.5 rounded-xl border text-left transition-all flex flex-col space-y-1 cursor-pointer ${
+                  className={`cursor-pointer border rounded-xl p-4 flex flex-col justify-between transition-all relative ${
                     role === "advisor"
-                      ? "border-indigo-600 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-600"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                      ? "border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-600/20 shadow-sm"
+                      : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <Briefcase
-                      className={`w-4 h-4 ${role === "advisor" ? "text-indigo-600" : "text-slate-400"}`}
-                    />
-                    <input
-                      type="radio"
-                      checked={role === "advisor"}
-                      readOnly
-                      className="accent-indigo-600"
-                    />
+                  <div className="flex items-center justify-between mb-2">
+                    <div
+                      className={`p-2 rounded-lg ${
+                        role === "advisor"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <Briefcase className="w-4 h-4" />
+                    </div>
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        role === "advisor"
+                          ? "border-indigo-600 bg-indigo-600"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {role === "advisor" && (
+                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                      )}
+                    </span>
                   </div>
-                  <span
-                    className={`text-xs font-bold ${role === "advisor" ? "text-indigo-950" : "text-slate-700"}`}
-                  >
-                    Advisor
-                  </span>
-                  <span className="text-[10px] text-slate-400 leading-tight">
-                    Submit & track documents
-                  </span>
-                </button>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Advisor</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Submit & track documents
+                    </p>
+                  </div>
+                </div>
 
-                <button
-                  type="button"
+                {/* Officer Card */}
+                <div
                   onClick={() => setRole("officer")}
-                  className={`p-3.5 rounded-xl border text-left transition-all flex flex-col space-y-1 cursor-pointer ${
+                  className={`cursor-pointer border rounded-xl p-4 flex flex-col justify-between transition-all relative ${
                     role === "officer"
-                      ? "border-indigo-600 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-600"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                      ? "border-indigo-600 bg-indigo-50/30 ring-2 ring-indigo-600/20 shadow-sm"
+                      : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <ShieldAlert
-                      className={`w-4 h-4 ${role === "officer" ? "text-indigo-600" : "text-slate-400"}`}
-                    />
-                    <input
-                      type="radio"
-                      checked={role === "officer"}
-                      readOnly
-                      className="accent-indigo-600"
-                    />
+                  <div className="flex items-center justify-between mb-2">
+                    <div
+                      className={`p-2 rounded-lg ${
+                        role === "officer"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <ShieldAlert className="w-4 h-4" />
+                    </div>
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        role === "officer"
+                          ? "border-indigo-600 bg-indigo-600"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {role === "officer" && (
+                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                      )}
+                    </span>
                   </div>
-                  <span
-                    className={`text-xs font-bold ${role === "officer" ? "text-indigo-950" : "text-slate-700"}`}
-                  >
-                    Officer
-                  </span>
-                  <span className="text-[10px] text-slate-400 leading-tight">
-                    Review & verify files
-                  </span>
-                </button>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Officer</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Review & verify files
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+            {/* Full Name */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Full Name
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <User className="w-4 h-4" />
-                </div>
+                </span>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Idongesit Udo"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+            {/* Email Address */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Mail className="w-4 h-4" />
-                </div>
+                </span>
                 <input
                   type="email"
                   required
@@ -219,26 +238,27 @@ export default function Signup() {
                       ? "officer@company.com"
                       : "advisor@company.com"
                   }
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+            {/* Password */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <Lock className="w-4 h-4" />
-                </div>
+                </span>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -252,15 +272,17 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center space-x-2 group cursor-pointer mt-2"
+              className="w-full mt-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 group cursor-pointer"
             >
               <span>
                 {loading
                   ? "Creating account..."
-                  : `Register as ${role === "officer" ? "Compliance Officer" : "Advisor"}`}
+                  : `Register as ${
+                      role === "officer" ? "Compliance Officer" : "Advisor"
+                    }`}
               </span>
               {!loading && (
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               )}
             </button>
           </form>
