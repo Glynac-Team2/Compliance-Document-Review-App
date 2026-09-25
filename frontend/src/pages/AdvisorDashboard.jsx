@@ -12,6 +12,7 @@ import {
   Search,
   RefreshCw,
   MessageSquare,
+  Filter,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -31,7 +32,7 @@ export default function AdvisorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [advisorNotes, setAdvisorNotes] = useState("");
-  const [isDraggingOver, setIsDraggingOver] = useState(false); // Feature 5 state
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -93,7 +94,6 @@ export default function AdvisorDashboard() {
     validateAndSetFile(e.target.files[0]);
   };
 
-  // Feature 5 Drag-and-Drop Event Handlers
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDraggingOver(true);
@@ -147,9 +147,7 @@ export default function AdvisorDashboard() {
   };
 
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
-  const approvedCount = submissions.filter(
-    (s) => s.status === "approved",
-  ).length;
+  const approvedCount = submissions.filter((s) => s.status === "approved").length;
 
   const filteredSubmissions = submissions.filter((sub) => {
     const matchesSearch = sub.filename.toLowerCase().includes(searchQuery.toLowerCase());
@@ -241,7 +239,7 @@ export default function AdvisorDashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Upload Widget with Drag & Drop State (Feature 5) */}
+        {/* Upload Widget */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -361,7 +359,7 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Submissions List */}
+        {/* Submissions List with Feature 6 Filter Tabs */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <div>
@@ -387,6 +385,44 @@ export default function AdvisorDashboard() {
             </div>
           </div>
 
+          {/* Feature 6: Filter Tabs bar */}
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter:</span>
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "all"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                All ({submissions.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter("pending")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "pending"
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter("approved")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "approved"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                Approved ({approvedCount})
+              </button>
+            </div>
+          </div>
+
           <div className="relative flex items-center space-x-2">
             <div className="relative flex-1">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
@@ -400,14 +436,6 @@ export default function AdvisorDashboard() {
                 className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
-            {statusFilter !== "all" && (
-              <button
-                onClick={() => setStatusFilter("all")}
-                className="px-3 py-2.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
-              >
-                Clear Filter ({statusFilter})
-              </button>
-            )}
           </div>
 
           <div className="space-y-3">
