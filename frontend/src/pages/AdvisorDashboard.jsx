@@ -16,6 +16,7 @@ import {
   X,
   Eye,
   Calendar,
+  Download,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -36,7 +37,7 @@ export default function AdvisorDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [advisorNotes, setAdvisorNotes] = useState("");
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState(null); // Feature 7 state
+  const [previewDoc, setPreviewDoc] = useState(null);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -163,6 +164,20 @@ export default function AdvisorDashboard() {
   const getFileExtension = (filename) => {
     const ext = filename.split('.').pop();
     return ext ? ext.toUpperCase() : 'FILE';
+  };
+
+  // Feature 8: Export Submissions as JSON/CSV Data File
+  const handleExportData = () => {
+    const exportData = JSON.stringify(filteredSubmissions, null, 2);
+    const blob = new Blob([exportData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `submissions-export-${statusFilter}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -363,7 +378,7 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Submissions List */}
+        {/* Submissions List with Feature 8 Export Button */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <div>
@@ -375,6 +390,15 @@ export default function AdvisorDashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={handleExportData}
+                disabled={filteredSubmissions.length === 0}
+                title="Export Submissions Data"
+                className="flex items-center space-x-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 rounded-lg transition-all text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
               <button
                 onClick={() => loadDocuments(true)}
                 disabled={refreshing}
@@ -501,7 +525,7 @@ export default function AdvisorDashboard() {
         </div>
       </div>
 
-      {/* Feature 7: Preview Modal Popup */}
+      {/* Preview Modal Popup */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 relative">
