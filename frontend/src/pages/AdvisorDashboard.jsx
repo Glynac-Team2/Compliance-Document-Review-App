@@ -27,6 +27,7 @@ export default function AdvisorDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all"); // Feature 1 state
 
   // Toggle dark mode class on root HTML element
   const toggleDarkMode = () => {
@@ -93,10 +94,13 @@ export default function AdvisorDashboard() {
     (s) => s.status === "approved",
   ).length;
 
-  // Filter submissions based on search input
-  const filteredSubmissions = submissions.filter((sub) =>
-    sub.filename.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter submissions based on search input and status filter card
+  const filteredSubmissions = submissions.filter((sub) => {
+    const matchesSearch = sub.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    if (statusFilter === "pending") return matchesSearch && sub.status === "pending";
+    if (statusFilter === "approved") return matchesSearch && sub.status === "approved";
+    return matchesSearch;
+  });
 
   // Helper to extract file extension badge text
   const getFileExtension = (filename) => {
@@ -126,10 +130,13 @@ export default function AdvisorDashboard() {
         </button>
       </div>
 
-      {/* Metric Overview Cards */}
+      {/* Metric Overview Cards (Clickable Filters - Feature 1) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Total Submissions */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("all")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'all' ? 'border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Total Submissions
@@ -144,7 +151,10 @@ export default function AdvisorDashboard() {
         </div>
 
         {/* Pending Review */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("pending")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'pending' ? 'border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Pending Review
@@ -159,7 +169,10 @@ export default function AdvisorDashboard() {
         </div>
 
         {/* Approved */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("approved")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'approved' ? 'border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Approved
@@ -279,23 +292,33 @@ export default function AdvisorDashboard() {
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </button>
               <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
-                {submissions.length} Total
+                {filteredSubmissions.length} Shown
               </span>
             </div>
           </div>
 
           {/* Search Filter Input Bar */}
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
-              <Search className="w-4 h-4" />
-            </span>
-            <input
-              type="text"
-              placeholder="Search submissions by file name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-            />
+          <div className="relative flex items-center space-x-2">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search submissions by file name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
+            {statusFilter !== "all" && (
+              <button
+                onClick={() => setStatusFilter("all")}
+                className="px-3 py-2.5 text-xs font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
+              >
+                Clear Filter ({statusFilter})
+              </button>
+            )}
           </div>
 
           <div className="space-y-3">
