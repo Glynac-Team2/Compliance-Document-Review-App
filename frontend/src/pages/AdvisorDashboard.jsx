@@ -13,6 +13,9 @@ import {
   RefreshCw,
   MessageSquare,
   Filter,
+  X,
+  Eye,
+  Calendar,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -33,6 +36,7 @@ export default function AdvisorDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [advisorNotes, setAdvisorNotes] = useState("");
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null); // Feature 7 state
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -162,7 +166,7 @@ export default function AdvisorDashboard() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
+    <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors relative">
       
       {/* Top Header Section */}
       <div className="flex justify-between items-center">
@@ -359,7 +363,7 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Submissions List with Feature 6 Filter Tabs */}
+        {/* Submissions List */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <div>
@@ -385,7 +389,6 @@ export default function AdvisorDashboard() {
             </div>
           </div>
 
-          {/* Feature 6: Filter Tabs bar */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
             <div className="flex items-center space-x-2">
               <Filter className="w-3.5 h-3.5 text-slate-400" />
@@ -451,7 +454,8 @@ export default function AdvisorDashboard() {
               return (
                 <div
                   key={sub.id}
-                  className="flex flex-col p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all space-y-3"
+                  onClick={() => setPreviewDoc(sub)}
+                  className="flex flex-col p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-indigo-50/40 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all space-y-3 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3.5 min-w-0">
@@ -466,7 +470,7 @@ export default function AdvisorDashboard() {
                           <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
                             DOC-{sub.id}
                           </span>
-                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                             {sub.filename}
                           </h4>
                         </div>
@@ -476,8 +480,11 @@ export default function AdvisorDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex-shrink-0 ml-4">
+                    <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
                       <StatusPill status={sub.status} />
+                      <span className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 group-hover:text-indigo-600 rounded-lg transition-colors">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
                     </div>
                   </div>
 
@@ -493,6 +500,79 @@ export default function AdvisorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Feature 7: Preview Modal Popup */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 relative">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900">
+                    DOC-{previewDoc.id}
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white truncate max-w-xs mt-0.5">
+                    {previewDoc.filename}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <span className="text-slate-400 font-medium block">Current Status</span>
+                  <StatusPill status={previewDoc.status} />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-slate-400 font-medium block">Submission Date</span>
+                  <div className="flex items-center space-x-1.5 text-slate-700 dark:text-slate-300 font-semibold">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{formatDate(previewDoc.uploaded_at)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {previewDoc.notes ? (
+                <div className="space-y-1.5">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Advisor Submission Notes</span>
+                  </span>
+                  <p className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-slate-600 dark:text-slate-300 italic leading-relaxed">
+                    "{previewDoc.notes}"
+                  </p>
+                </div>
+              ) : (
+                <p className="text-slate-400 italic">No notes were attached to this submission.</p>
+              )}
+
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 rounded-xl text-amber-700 dark:text-amber-300 flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 flex-shrink-0" />
+                <span>AI compliance verification has completed successfully for this document.</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
