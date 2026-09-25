@@ -30,7 +30,8 @@ export default function AdvisorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [advisorNotes, setAdvisorNotes] = useState(""); // Feature 4 state
+  const [advisorNotes, setAdvisorNotes] = useState("");
+  const [isDraggingOver, setIsDraggingOver] = useState(false); // Feature 5 state
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -66,8 +67,7 @@ export default function AdvisorDashboard() {
     loadDocuments();
   }, []);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const validateAndSetFile = (file) => {
     if (!file) return;
 
     const allowedExtensions = ['pdf', 'docx', 'xlsx'];
@@ -87,6 +87,29 @@ export default function AdvisorDashboard() {
 
     setUploadError("");
     setSelectedFile(file);
+  };
+
+  const handleFileChange = (e) => {
+    validateAndSetFile(e.target.files[0]);
+  };
+
+  // Feature 5 Drag-and-Drop Event Handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetFile(e.dataTransfer.files[0]);
+    }
   };
 
   const handleUpload = async (e) => {
@@ -218,7 +241,7 @@ export default function AdvisorDashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Upload Widget with Optional Notes (Feature 4) */}
+        {/* Upload Widget with Drag & Drop State (Feature 5) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -251,12 +274,25 @@ export default function AdvisorDashboard() {
             )}
 
             <form onSubmit={handleUpload} className="space-y-4">
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 rounded-2xl p-6 cursor-pointer transition-all group">
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-2 transition-colors shadow-sm">
+              <label 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all group ${
+                  isDraggingOver
+                    ? "border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/60 ring-4 ring-indigo-500/20"
+                    : "border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30"
+                }`}
+              >
+                <div className={`p-3 rounded-2xl mb-2 transition-colors shadow-sm ${
+                  isDraggingOver 
+                    ? "bg-indigo-600 text-white" 
+                    : "bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
+                }`}>
                   <UploadCloud className="w-6 h-6" />
                 </div>
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate max-w-full">
-                  {selectedFile ? selectedFile.name : "Click to upload or drag & drop"}
+                  {selectedFile ? selectedFile.name : (isDraggingOver ? "Drop file here..." : "Click to upload or drag & drop")}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   PDF, DOCX, XLSX (Max 10MB)
@@ -269,7 +305,6 @@ export default function AdvisorDashboard() {
                 />
               </label>
 
-              {/* Feature 4: Advisor Notes Text Area */}
               <div className="space-y-1.5">
                 <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
