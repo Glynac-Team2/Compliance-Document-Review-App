@@ -172,6 +172,7 @@ export default function OfficerDashboard() {
             Review queues, batch approve, and inspect compliance metadata.
           </p>
         </div>
+        
         <button
           onClick={toggleDarkMode}
           className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all flex items-center space-x-2 cursor-pointer text-xs font-semibold"
@@ -365,9 +366,14 @@ export default function OfficerDashboard() {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {item.filename}
-                      </h4>
+                      <div className="flex items-center space-x-2 mb-0.5">
+                        <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
+                          DOC-{item.id}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {item.filename}
+                        </h4>
+                      </div>
                       <p className="text-xs text-slate-400 dark:text-slate-500">
                         Advisor: {item.advisor?.name} •{" "}
                         {formatDate(item.uploaded_at)}
@@ -390,10 +396,15 @@ export default function OfficerDashboard() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center space-x-1 mb-1">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>AI Pre-Screening Result</span>
-                  </span>
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
+                      DOC-{selectedDoc.id}
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center space-x-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>AI Pre-Screening Result</span>
+                    </span>
+                  </div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                     {selectedDoc.filename}
                   </h3>
