@@ -11,6 +11,7 @@ import {
   Sun,
   Search,
   RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -29,6 +30,7 @@ export default function AdvisorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [advisorNotes, setAdvisorNotes] = useState(""); // Feature 4 state
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -64,7 +66,6 @@ export default function AdvisorDashboard() {
     loadDocuments();
   }, []);
 
-  // Feature 3: Enhanced file selection validation
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -106,8 +107,9 @@ export default function AdvisorDashboard() {
       setUploadProgress(100);
 
       setTimeout(() => {
-        setSubmissions((prev) => [doc, ...prev]);
+        setSubmissions((prev) => [{ ...doc, notes: advisorNotes }, ...prev]);
         setSelectedFile(null);
+        setAdvisorNotes("");
         setUploading(false);
         setUploadProgress(0);
         setSuccessMsg(true);
@@ -216,7 +218,7 @@ export default function AdvisorDashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Upload Widget with Format Validation (Feature 3) */}
+        {/* Upload Widget with Optional Notes (Feature 4) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -249,11 +251,11 @@ export default function AdvisorDashboard() {
             )}
 
             <form onSubmit={handleUpload} className="space-y-4">
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 rounded-2xl p-8 cursor-pointer transition-all group">
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-3 transition-colors shadow-sm">
-                  <UploadCloud className="w-7 h-7" />
+              <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 rounded-2xl p-6 cursor-pointer transition-all group">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-2 transition-colors shadow-sm">
+                  <UploadCloud className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate max-w-full">
                   {selectedFile ? selectedFile.name : "Click to upload or drag & drop"}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">
@@ -266,6 +268,27 @@ export default function AdvisorDashboard() {
                   accept=".pdf,.docx,.xlsx"
                 />
               </label>
+
+              {/* Feature 4: Advisor Notes Text Area */}
+              <div className="space-y-1.5">
+                <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Submission Notes (Optional)</span>
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows="2"
+                    maxLength={200}
+                    value={advisorNotes}
+                    onChange={(e) => setAdvisorNotes(e.target.value)}
+                    placeholder="Add any specific context or remarks for compliance reviewers..."
+                    className="w-full p-3 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                  <span className="absolute bottom-2.5 right-3 text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                    {advisorNotes.length}/200
+                  </span>
+                </div>
+              </div>
 
               {uploading && (
                 <div className="space-y-1.5">
@@ -365,33 +388,42 @@ export default function AdvisorDashboard() {
               return (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all"
+                  className="flex flex-col p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all space-y-3"
                 >
-                  <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0 relative">
-                      <FileText className="w-5 h-5" />
-                      <span className="absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1 bg-indigo-600 text-white rounded">
-                        {getFileExtension(sub.filename)}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center space-x-2 mb-0.5">
-                        <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
-                          DOC-{sub.id}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3.5 min-w-0">
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0 relative">
+                        <FileText className="w-5 h-5" />
+                        <span className="absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1 bg-indigo-600 text-white rounded">
+                          {getFileExtension(sub.filename)}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {sub.filename}
-                        </h4>
                       </div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        Submitted {formatDate(sub.uploaded_at)}
-                      </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-2 mb-0.5">
+                          <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
+                            DOC-{sub.id}
+                          </span>
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {sub.filename}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                          Submitted {formatDate(sub.uploaded_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 ml-4">
+                      <StatusPill status={sub.status} />
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 ml-4">
-                    <StatusPill status={sub.status} />
-                  </div>
+                  {sub.notes && (
+                    <div className="text-xs bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-lg p-2.5 text-slate-600 dark:text-slate-300 italic flex items-start space-x-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-indigo-500 mt-0.5 flex-shrink-0" />
+                      <span>Note: {sub.notes}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
