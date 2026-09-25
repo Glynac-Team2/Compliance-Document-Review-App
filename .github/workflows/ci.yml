@@ -10,10 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ./frontend
-
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +20,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: ./frontend
 
       - name: Build project
         run: npm run build
+        working-directory: ./frontend
