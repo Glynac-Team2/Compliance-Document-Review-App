@@ -9,6 +9,14 @@ import {
   AlertCircle,
   Moon,
   Sun,
+  Search,
+  RefreshCw,
+  MessageSquare,
+  Filter,
+  X,
+  Eye,
+  Calendar,
+  Download,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -17,14 +25,20 @@ import { StatusPill } from "../components/Badges";
 export default function AdvisorDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [successMsg, setSuccessMsg] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [advisorNotes, setAdvisorNotes] = useState("");
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null);
 
-  // Toggle dark mode class on root HTML element
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -35,37 +49,71 @@ export default function AdvisorDashboard() {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadDocuments = async (isManualRefresh = false) => {
+    try {
+      if (isManualRefresh) setRefreshing(true);
+      else setLoading(true);
 
-    async function load() {
-      try {
-        setLoading(true);
-        const data = await api.listDocuments();
-        if (cancelled) return;
-        setSubmissions(
-          [...data].sort(
-            (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
-          ),
-        );
-        setError("");
-      } catch (err) {
-        if (cancelled) return;
-        setError(err.message || "Failed to load documents.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const data = await api.listDocuments();
+      setSubmissions(
+        [...data].sort(
+          (a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at),
+        ),
+      );
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load documents.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
 
-    load();
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    loadDocuments();
   }, []);
 
+  const validateAndSetFile = (file) => {
+    if (!file) return;
+
+    const allowedExtensions = ['pdf', 'docx', 'xlsx'];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      setUploadError(`Invalid file format (.${fileExt}). Please select PDF, DOCX, or XLSX.`);
+      setSelectedFile(null);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("File size exceeds 10MB limit.");
+      setSelectedFile(null);
+      return;
+    }
+
+    setUploadError("");
+    setSelectedFile(file);
+  };
+
   const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    validateAndSetFile(e.target.files[0]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -74,29 +122,68 @@ export default function AdvisorDashboard() {
     if (!selectedFile) return;
 
     setUploading(true);
+    setUploadProgress(15);
     setUploadError("");
+    
     try {
+      const timer = setInterval(() => {
+        setUploadProgress((prev) => (prev < 85 ? prev + 20 : prev));
+      }, 200);
+
       const doc = await api.submitDocument(selectedFile);
-      setSubmissions((prev) => [doc, ...prev]);
-      setSelectedFile(null);
-      setSuccessMsg(true);
-      setTimeout(() => setSuccessMsg(false), 4000);
+      clearInterval(timer);
+      setUploadProgress(100);
+
+      setTimeout(() => {
+        setSubmissions((prev) => [{ ...doc, notes: advisorNotes }, ...prev]);
+        setSelectedFile(null);
+        setAdvisorNotes("");
+        setUploading(false);
+        setUploadProgress(0);
+        setSuccessMsg(true);
+        setTimeout(() => setSuccessMsg(false), 4000);
+      }, 400);
+
     } catch (err) {
-      setUploadError(err.message || "Upload failed.");
-    } finally {
       setUploading(false);
+      setUploadProgress(0);
+      setUploadError(err.message || "Upload failed.");
     }
   };
 
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
-  const approvedCount = submissions.filter(
-    (s) => s.status === "approved",
-  ).length;
+  const approvedCount = submissions.filter((s) => s.status === "approved").length;
+
+  const filteredSubmissions = submissions.filter((sub) => {
+    const matchesSearch = sub.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    if (statusFilter === "pending") return matchesSearch && sub.status === "pending";
+    if (statusFilter === "approved") return matchesSearch && sub.status === "approved";
+    return matchesSearch;
+  });
+
+  const getFileExtension = (filename) => {
+    const ext = filename.split('.').pop();
+    return ext ? ext.toUpperCase() : 'FILE';
+  };
+
+  // Feature 8: Export Submissions as JSON/CSV Data File
+  const handleExportData = () => {
+    const exportData = JSON.stringify(filteredSubmissions, null, 2);
+    const blob = new Blob([exportData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `submissions-export-${statusFilter}-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
+    <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors relative">
       
-      {/* Top Header Section with Dark Mode Toggle */}
+      {/* Top Header Section */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -117,8 +204,10 @@ export default function AdvisorDashboard() {
 
       {/* Metric Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Submissions */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("all")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'all' ? 'border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Total Submissions
@@ -132,8 +221,10 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Pending Review */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("pending")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'pending' ? 'border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Pending Review
@@ -147,8 +238,10 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Approved */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between relative overflow-hidden transition-colors">
+        <div 
+          onClick={() => setStatusFilter("approved")}
+          className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'approved' ? 'border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
+        >
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Approved
@@ -163,9 +256,9 @@ export default function AdvisorDashboard() {
         </div>
       </div>
 
-      {/* Content Grid: Submit Section + Submissions List */}
+      {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Side: Upload Widget */}
+        {/* Upload Widget */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -179,35 +272,44 @@ export default function AdvisorDashboard() {
                 Submit a Document
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Automated AI compliance screening will run before officer
-                review.
+                Automated AI compliance screening will run before officer review.
               </p>
             </div>
 
             {successMsg && (
               <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  Document uploaded and queued for screening successfully!
-                </span>
+                <span>Document uploaded and queued for screening successfully!</span>
               </div>
             )}
 
             {uploadError && (
-              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-medium">
-                {uploadError}
+              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{uploadError}</span>
               </div>
             )}
 
             <form onSubmit={handleUpload} className="space-y-4">
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30 rounded-2xl p-8 cursor-pointer transition-all group">
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-3 transition-colors shadow-sm">
-                  <UploadCloud className="w-7 h-7" />
+              <label 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all group ${
+                  isDraggingOver
+                    ? "border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/60 ring-4 ring-indigo-500/20"
+                    : "border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30"
+                }`}
+              >
+                <div className={`p-3 rounded-2xl mb-2 transition-colors shadow-sm ${
+                  isDraggingOver 
+                    ? "bg-indigo-600 text-white" 
+                    : "bg-indigo-50 dark:bg-indigo-950 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400"
+                }`}>
+                  <UploadCloud className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                  {selectedFile
-                    ? selectedFile.name
-                    : "Click to upload or drag & drop"}
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate max-w-full">
+                  {selectedFile ? selectedFile.name : (isDraggingOver ? "Drop file here..." : "Click to upload or drag & drop")}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   PDF, DOCX, XLSX (Max 10MB)
@@ -220,6 +322,41 @@ export default function AdvisorDashboard() {
                 />
               </label>
 
+              <div className="space-y-1.5">
+                <label className="flex items-center space-x-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Submission Notes (Optional)</span>
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows="2"
+                    maxLength={200}
+                    value={advisorNotes}
+                    onChange={(e) => setAdvisorNotes(e.target.value)}
+                    placeholder="Add any specific context or remarks for compliance reviewers..."
+                    className="w-full p-3 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                  <span className="absolute bottom-2.5 right-3 text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                    {advisorNotes.length}/200
+                  </span>
+                </div>
+              </div>
+
+              {uploading && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    <span>Uploading & Screening...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={!selectedFile || uploading}
@@ -230,24 +367,18 @@ export default function AdvisorDashboard() {
                 }`}
               >
                 <FileCheck className="w-4 h-4" />
-                <span>
-                  {uploading
-                    ? "Processing AI Screening..."
-                    : "Submit for Review"}
-                </span>
+                <span>{uploading ? "Processing AI Screening..." : "Submit for Review"}</span>
               </button>
             </form>
           </div>
 
           <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center space-x-2 text-xs text-slate-400 dark:text-slate-500">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>
-              Files are encrypted end-to-end according to compliance policy.
-            </span>
+            <span>Files are encrypted end-to-end according to compliance policy.</span>
           </div>
         </div>
 
-        {/* Right Side: Submissions List */}
+        {/* Submissions List with Feature 8 Export Button */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <div>
@@ -258,52 +389,214 @@ export default function AdvisorDashboard() {
                 Track real-time review status of uploaded documents.
               </p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
-              {submissions.length} Total
-            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleExportData}
+                disabled={filteredSubmissions.length === 0}
+                title="Export Submissions Data"
+                className="flex items-center space-x-1.5 px-3 py-2 bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 rounded-lg transition-all text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
+              <button
+                onClick={() => loadDocuments(true)}
+                disabled={refreshing}
+                title="Refresh Submissions"
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <span className="text-xs font-semibold px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
+                {filteredSubmissions.length} Shown
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filter:</span>
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "all"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                All ({submissions.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter("pending")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "pending"
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter("approved")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "approved"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                Approved ({approvedCount})
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex items-center space-x-2">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search submissions by file name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50/60 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
-            {loading && (
-              <p className="text-sm text-slate-400 dark:text-slate-500">Loading submissions…</p>
-            )}
-            {error && (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                {error}
-              </p>
-            )}
+            {loading && <p className="text-sm text-slate-400 dark:text-slate-500">Loading submissions…</p>}
+            {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             {!loading && !error && submissions.length === 0 && (
               <p className="text-sm text-slate-400 dark:text-slate-500">No submissions yet.</p>
             )}
-            {submissions.map((sub) => {
+            {!loading && !error && submissions.length > 0 && filteredSubmissions.length === 0 && (
+              <p className="text-sm text-slate-400 dark:text-slate-500">No matching submissions found.</p>
+            )}
+            {filteredSubmissions.map((sub) => {
               return (
                 <div
                   key={sub.id}
-                  className="flex items-center justify-between p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all"
+                  onClick={() => setPreviewDoc(sub)}
+                  className="flex flex-col p-4 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-indigo-50/40 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl transition-all space-y-3 cursor-pointer group"
                 >
-                  <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
-                      <FileText className="w-5 h-5" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3.5 min-w-0">
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0 relative">
+                        <FileText className="w-5 h-5" />
+                        <span className="absolute -bottom-1 -right-1 text-[9px] font-extrabold px-1 bg-indigo-600 text-white rounded">
+                          {getFileExtension(sub.filename)}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-2 mb-0.5">
+                          <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
+                            DOC-{sub.id}
+                          </span>
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {sub.filename}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                          Submitted {formatDate(sub.uploaded_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {sub.filename}
-                      </h4>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        Submitted {formatDate(sub.uploaded_at)}
-                      </p>
+
+                    <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+                      <StatusPill status={sub.status} />
+                      <span className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-400 group-hover:text-indigo-600 rounded-lg transition-colors">
+                        <Eye className="w-3.5 h-3.5" />
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 ml-4">
-                    <StatusPill status={sub.status} />
-                  </div>
+                  {sub.notes && (
+                    <div className="text-xs bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-lg p-2.5 text-slate-600 dark:text-slate-300 italic flex items-start space-x-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-indigo-500 mt-0.5 flex-shrink-0" />
+                      <span>Note: {sub.notes}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* Preview Modal Popup */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-6 relative">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900">
+                    DOC-{previewDoc.id}
+                  </span>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white truncate max-w-xs mt-0.5">
+                    {previewDoc.filename}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <span className="text-slate-400 font-medium block">Current Status</span>
+                  <StatusPill status={previewDoc.status} />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-slate-400 font-medium block">Submission Date</span>
+                  <div className="flex items-center space-x-1.5 text-slate-700 dark:text-slate-300 font-semibold">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{formatDate(previewDoc.uploaded_at)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {previewDoc.notes ? (
+                <div className="space-y-1.5">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Advisor Submission Notes</span>
+                  </span>
+                  <p className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-slate-600 dark:text-slate-300 italic leading-relaxed">
+                    "{previewDoc.notes}"
+                  </p>
+                </div>
+              ) : (
+                <p className="text-slate-400 italic">No notes were attached to this submission.</p>
+              )}
+
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 rounded-xl text-amber-700 dark:text-amber-300 flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 flex-shrink-0" />
+                <span>AI compliance verification has completed successfully for this document.</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
