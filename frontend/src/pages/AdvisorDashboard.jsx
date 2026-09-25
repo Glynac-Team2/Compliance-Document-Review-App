@@ -19,6 +19,7 @@ import { StatusPill } from "../components/Badges";
 export default function AdvisorDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // Feature 2 state
   const [successMsg, setSuccessMsg] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ export default function AdvisorDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all"); // Feature 1 state
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Toggle dark mode class on root HTML element
   const toggleDarkMode = () => {
@@ -75,17 +76,32 @@ export default function AdvisorDashboard() {
     if (!selectedFile) return;
 
     setUploading(true);
+    setUploadProgress(15);
     setUploadError("");
+    
     try {
+      // Simulate progress ticks
+      const timer = setInterval(() => {
+        setUploadProgress((prev) => (prev < 85 ? prev + 20 : prev));
+      }, 200);
+
       const doc = await api.submitDocument(selectedFile);
-      setSubmissions((prev) => [doc, ...prev]);
-      setSelectedFile(null);
-      setSuccessMsg(true);
-      setTimeout(() => setSuccessMsg(false), 4000);
+      clearInterval(timer);
+      setUploadProgress(100);
+
+      setTimeout(() => {
+        setSubmissions((prev) => [doc, ...prev]);
+        setSelectedFile(null);
+        setUploading(false);
+        setUploadProgress(0);
+        setSuccessMsg(true);
+        setTimeout(() => setSuccessMsg(false), 4000);
+      }, 400);
+
     } catch (err) {
-      setUploadError(err.message || "Upload failed.");
-    } finally {
       setUploading(false);
+      setUploadProgress(0);
+      setUploadError(err.message || "Upload failed.");
     }
   };
 
@@ -94,7 +110,6 @@ export default function AdvisorDashboard() {
     (s) => s.status === "approved",
   ).length;
 
-  // Filter submissions based on search input and status filter card
   const filteredSubmissions = submissions.filter((sub) => {
     const matchesSearch = sub.filename.toLowerCase().includes(searchQuery.toLowerCase());
     if (statusFilter === "pending") return matchesSearch && sub.status === "pending";
@@ -102,7 +117,6 @@ export default function AdvisorDashboard() {
     return matchesSearch;
   });
 
-  // Helper to extract file extension badge text
   const getFileExtension = (filename) => {
     const ext = filename.split('.').pop();
     return ext ? ext.toUpperCase() : 'FILE';
@@ -111,7 +125,7 @@ export default function AdvisorDashboard() {
   return (
     <main className="max-w-7xl mx-auto px-6 py-8 space-y-8 bg-slate-50 dark:bg-slate-950 min-h-screen transition-colors">
       
-      {/* Top Header Section with Dark Mode Toggle */}
+      {/* Top Header Section */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -130,9 +144,8 @@ export default function AdvisorDashboard() {
         </button>
       </div>
 
-      {/* Metric Overview Cards (Clickable Filters - Feature 1) */}
+      {/* Metric Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Submissions */}
         <div 
           onClick={() => setStatusFilter("all")}
           className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'all' ? 'border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
@@ -150,7 +163,6 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Pending Review */}
         <div 
           onClick={() => setStatusFilter("pending")}
           className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'pending' ? 'border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
@@ -168,7 +180,6 @@ export default function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Approved */}
         <div 
           onClick={() => setStatusFilter("approved")}
           className={`bg-white dark:bg-slate-900 p-6 rounded-2xl border ${statusFilter === 'approved' ? 'border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-sm flex items-center justify-between relative overflow-hidden transition-all cursor-pointer hover:shadow-md`}
@@ -187,9 +198,9 @@ export default function AdvisorDashboard() {
         </div>
       </div>
 
-      {/* Content Grid: Submit Section + Submissions List */}
+      {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Side: Upload Widget */}
+        {/* Upload Widget with Progress Bar (Feature 2) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -203,17 +214,14 @@ export default function AdvisorDashboard() {
                 Submit a Document
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Automated AI compliance screening will run before officer
-                review.
+                Automated AI compliance screening will run before officer review.
               </p>
             </div>
 
             {successMsg && (
               <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-medium flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  Document uploaded and queued for screening successfully!
-                </span>
+                <span>Document uploaded and queued for screening successfully!</span>
               </div>
             )}
 
@@ -229,9 +237,7 @@ export default function AdvisorDashboard() {
                   <UploadCloud className="w-7 h-7" />
                 </div>
                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                  {selectedFile
-                    ? selectedFile.name
-                    : "Click to upload or drag & drop"}
+                  {selectedFile ? selectedFile.name : "Click to upload or drag & drop"}
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   PDF, DOCX, XLSX (Max 10MB)
@@ -244,6 +250,22 @@ export default function AdvisorDashboard() {
                 />
               </label>
 
+              {/* Upload Progress Bar Indicator (Feature 2) */}
+              {uploading && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    <span>Uploading & Screening...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={!selectedFile || uploading}
@@ -254,24 +276,18 @@ export default function AdvisorDashboard() {
                 }`}
               >
                 <FileCheck className="w-4 h-4" />
-                <span>
-                  {uploading
-                    ? "Processing AI Screening..."
-                    : "Submit for Review"}
-                </span>
+                <span>{uploading ? "Processing AI Screening..." : "Submit for Review"}</span>
               </button>
             </form>
           </div>
 
           <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center space-x-2 text-xs text-slate-400 dark:text-slate-500">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>
-              Files are encrypted end-to-end according to compliance policy.
-            </span>
+            <span>Files are encrypted end-to-end according to compliance policy.</span>
           </div>
         </div>
 
-        {/* Right Side: Submissions List */}
+        {/* Submissions List */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 transition-colors">
           <div className="flex items-center justify-between">
             <div>
@@ -297,7 +313,6 @@ export default function AdvisorDashboard() {
             </div>
           </div>
 
-          {/* Search Filter Input Bar */}
           <div className="relative flex items-center space-x-2">
             <div className="relative flex-1">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400 dark:text-slate-500">
@@ -322,14 +337,8 @@ export default function AdvisorDashboard() {
           </div>
 
           <div className="space-y-3">
-            {loading && (
-              <p className="text-sm text-slate-400 dark:text-slate-500">Loading submissions…</p>
-            )}
-            {error && (
-              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-                {error}
-              </p>
-            )}
+            {loading && <p className="text-sm text-slate-400 dark:text-slate-500">Loading submissions…</p>}
+            {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             {!loading && !error && submissions.length === 0 && (
               <p className="text-sm text-slate-400 dark:text-slate-500">No submissions yet.</p>
             )}
