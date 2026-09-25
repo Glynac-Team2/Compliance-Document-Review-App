@@ -21,6 +21,7 @@ import AssistPanel from "../components/AssistPanel";
 
 export default function OfficerDashboard() {
   const [filterTab, setFilterTab] = useState("All");
+  const [fileTypeFilter, setFileTypeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [queue, setQueue] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -147,14 +148,18 @@ export default function OfficerDashboard() {
     const matchesTab =
       filterTab === "All" || item.status === filterTab.toLowerCase();
 
+    const filename = item.filename || "";
+    const fileExtension = filename.split('.').pop().toLowerCase();
+    const matchesFileType = 
+      fileTypeFilter === 'all' || fileExtension === fileTypeFilter;
+
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return matchesTab;
+    if (!query) return matchesTab && matchesFileType;
 
     const advisorName = item.advisor?.name?.toLowerCase() || "";
-    const filename = item.filename?.toLowerCase() || "";
-    const matchesSearch = advisorName.includes(query) || filename.includes(query);
+    const matchesSearch = advisorName.includes(query) || filename.toLowerCase().includes(query);
 
-    return matchesTab && matchesSearch;
+    return matchesTab && matchesFileType && matchesSearch;
   });
 
   const pendingCount = queue.filter((s) => s.status === "pending").length;
@@ -268,6 +273,29 @@ export default function OfficerDashboard() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* File Type Filter Pills */}
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Type:</span>
+              <button 
+                onClick={() => setFileTypeFilter('all')} 
+                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors cursor-pointer ${fileTypeFilter === 'all' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+              >
+                All Types
+              </button>
+              <button 
+                onClick={() => setFileTypeFilter('xlsx')} 
+                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors cursor-pointer ${fileTypeFilter === 'xlsx' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+              >
+                Excel (.xlsx)
+              </button>
+              <button 
+                onClick={() => setFileTypeFilter('pdf')} 
+                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors cursor-pointer ${fileTypeFilter === 'pdf' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+              >
+                PDF (.pdf)
+              </button>
             </div>
 
             {/* Advisor Search Bar & Select All Tool */}
