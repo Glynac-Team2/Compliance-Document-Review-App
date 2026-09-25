@@ -19,7 +19,7 @@ import { StatusPill } from "../components/Badges";
 export default function AdvisorDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0); // Feature 2 state
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [successMsg, setSuccessMsg] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,6 @@ export default function AdvisorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Toggle dark mode class on root HTML element
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -65,10 +64,28 @@ export default function AdvisorDashboard() {
     loadDocuments();
   }, []);
 
+  // Feature 3: Enhanced file selection validation
   const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedExtensions = ['pdf', 'docx', 'xlsx'];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      setUploadError(`Invalid file format (.${fileExt}). Please select PDF, DOCX, or XLSX.`);
+      setSelectedFile(null);
+      return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("File size exceeds 10MB limit.");
+      setSelectedFile(null);
+      return;
+    }
+
+    setUploadError("");
+    setSelectedFile(file);
   };
 
   const handleUpload = async (e) => {
@@ -80,7 +97,6 @@ export default function AdvisorDashboard() {
     setUploadError("");
     
     try {
-      // Simulate progress ticks
       const timer = setInterval(() => {
         setUploadProgress((prev) => (prev < 85 ? prev + 20 : prev));
       }, 200);
@@ -200,7 +216,7 @@ export default function AdvisorDashboard() {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Upload Widget with Progress Bar (Feature 2) */}
+        {/* Upload Widget with Format Validation (Feature 3) */}
         <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors">
           <div className="space-y-6">
             <div className="space-y-1">
@@ -226,8 +242,9 @@ export default function AdvisorDashboard() {
             )}
 
             {uploadError && (
-              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-medium">
-                {uploadError}
+              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{uploadError}</span>
               </div>
             )}
 
@@ -250,7 +267,6 @@ export default function AdvisorDashboard() {
                 />
               </label>
 
-              {/* Upload Progress Bar Indicator (Feature 2) */}
               {uploading && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
