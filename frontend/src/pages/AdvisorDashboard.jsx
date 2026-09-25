@@ -327,9 +327,14 @@ export default function AdvisorDashboard() {
                       </span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {sub.filename}
-                      </h4>
+                      <div className="flex items-center space-x-2 mb-0.5">
+                        <span className="text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">
+                          DOC-{sub.id}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {sub.filename}
+                        </h4>
+                      </div>
                       <p className="text-xs text-slate-400 dark:text-slate-500">
                         Submitted {formatDate(sub.uploaded_at)}
                       </p>
