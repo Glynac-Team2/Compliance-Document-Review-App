@@ -40,6 +40,7 @@ class UserOut(BaseModel):
     name: str
     email: EmailStr
     role: Role
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -50,8 +51,9 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     password: str | None = Field(default=None, min_length=8)
     role: Role | None = None
+    is_active: bool | None = None
 
-    @field_validator("name", "email", "password", "role")
+    @field_validator("name", "email", "password", "role", "is_active")
     @classmethod
     def no_explicit_null(cls, v):
         if v is None:

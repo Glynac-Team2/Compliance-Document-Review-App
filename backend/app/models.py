@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector  # adding pgvector support for vector embeddings
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import relationship
@@ -48,6 +48,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True, default=gen_id)
     organization_id = Column(String, ForeignKey("organizations.id"), index=True, nullable=False)
+    is_active = Column(Boolean, default=True, server_default="true", nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)

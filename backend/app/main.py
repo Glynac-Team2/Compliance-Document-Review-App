@@ -50,7 +50,6 @@ app.include_router(reviews.router)
 app.include_router(admin.router)
 
 
-
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
     try:

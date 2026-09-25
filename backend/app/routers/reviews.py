@@ -18,7 +18,11 @@ def record_decision(
     officer: User = Depends(require_role(Role.officer)),
     db: Session = Depends(get_db),
 ):
-    doc = db.query(Document).filter(Document.id == document_id).first()
+    doc = (
+        db.query(Document)
+        .filter(Document.organization_id == officer.organization_id, Document.id == document_id)
+        .first()
+    )
     if not doc:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,

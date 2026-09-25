@@ -7,13 +7,17 @@ import { useAuth } from "../contexts/AuthContext";
 // doesn't even see officer navigation, not to be the actual security layer.
 export default function RequireRole({ role, children }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== role)
-    return (
-      <Navigate
-        to={user.role === "officer" ? "/officer" : "/advisor"}
-        replace
-      />
-    );
+  if (user.role !== role) {
+    let location =
+      user.role === "officer"
+        ? "/officer"
+        : user.role === "advisor"
+          ? "/advisor"
+          : user.role === "admin"
+            ? "/admin"
+            : "/login";
+
+    return <Navigate to={location} replace />;
+  }
   return children;
 }
