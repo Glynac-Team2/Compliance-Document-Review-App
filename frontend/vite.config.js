@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 export default defineConfig({
-  root: '.',
   plugins: [react()],
   build: {
     rollupOptions: {
-      input: './index.html'
-    }
+      input: resolve(__dirname, 'index.html'),
+    },
   },
   define: {
     'process.env': {}
